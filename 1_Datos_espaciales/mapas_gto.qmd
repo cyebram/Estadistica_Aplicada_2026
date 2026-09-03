@@ -1,0 +1,293 @@
+---
+title: "Datos Espaciales"
+format: 
+  html:
+    grid: 
+      body-width: 950px
+---
+
+# Introducción
+
+Los datos espaciales son información que contiene una referencia geográfica, es decir, datos que están vinculados a una ubicación específica en la superficie terrestre. En el contexto de R, trabajamos frecuentemente con estos datos para realizar análisis geoespaciales, crear mapas y visualizar patrones espaciales.
+
+# ¿Qué son los archivos Shapefile?
+
+Los archivos **Shapefile** (con extensión `.shp`) son uno de los formatos más comunes para almacenar datos vectoriales geoespaciales. Fueron desarrollados por ESRI y se han convertido en un estándar de facto en la industria GIS.
+
+## Componentes de un Shapefile
+
+Un shapefile no es un archivo único, sino un conjunto de archivos que trabajan juntos:
+
+- **`.shp`**: Archivo principal que contiene la geometría de las características espaciales
+- **`.shx`**: Archivo de índice que permite acceso rápido a los registros
+- **`.dbf`**: Base de datos en formato dBASE que contiene los atributos
+- **`.prj`**: Archivo de proyección que define el sistema de coordenadas
+- **`.cpg`**: Archivo de codificación de caracteres (opcional)
+
+## Tipos de geometrías
+
+Los shapefiles pueden contener los siguientes tipos de geometrías:
+
+1.  **Puntos**: Ubicaciones específicas (coordenadas x, y)
+2.  **Líneas**: Secuencias de puntos conectados (ríos, carreteras)
+3.  **Polígonos**: Áreas cerradas (límites administrativos, lagos)
+4.  **Multipuntos, Multilíneas y Multipolígonos**: Colecciones de los tipos anteriores
+
+# Fuente de datos: INEGI
+
+Para este ejemplo, utilizaremos los datos del **Instituto Nacional de Estadística y Geografía (INEGI)** de México. Específicamente, el Marco Geoestadístico disponible en:
+
+**Enlace de descarga**: https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=794551132173
+
+Este conjunto de datos para el estado de Guanajuato incluye: 
+
+* Límites estatales (archivos `11ent.*`) 
+
+* Límites municipales (archivos `11mun.*`) 
+
+* Otras divisiones territoriales
+
+En total utilizaremos 10 archivos que se encuentran en una carpeta llamada *data* dentro del proyecto.
+
+# Configuración del entorno
+
+Primero, carguemos las librerías necesarias:
+
+```{r setup}
+#| warning: false
+#| message: false
+
+# Cargar librerías
+library(tidyverse)    # Para manipulación de datos
+library(sf)          # Para datos espaciales
+library(viridis)     # Para paletas de colores
+
+# Configurar tema para los mapas
+theme_set(theme_minimal())
+```
+
+## Lectura de datos espaciales
+
+### Cargando los límites estatales
+
+Primero, leemos el archivo shapefile para Guanajuato. 
+
+```{r entidades}
+# Nota: Asegúrate de que todos los archivos (shp, shx, dbf, prj, cpg) estén en el mismo directorio: data
+
+gto_estado <- st_read("data/11ent.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+```
+
+### Visualización del estado de Guanajuato
+
+```{r mapa_gto_estado}
+#| fig-align: center
+
+# Crear mapa básico de Guanajuato
+mapa_gto <- ggplot(gto_estado) +
+  geom_sf(fill = "lightblue", color = "darkblue", size = 0.8) +
+  labs(
+    title = "Estado de Guanajuato",
+    subtitle = "Límites estatales",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+
+print(mapa_gto)
+```
+
+## Trabajando con límites municipales
+
+### Cargando los datos municipales
+
+Ahora carguemos los límites municipales:
+
+```{r municipios}
+municipios_gto <- st_read("data/11mun.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+
+# Explorar los datos
+cat("Número de municipios en Guanajuato:", nrow(municipios_gto), "\n")
+cat("Primeros 10 municipios en el dataset:\n")
+print(municipios_gto$NOMGEO[1:10])
+```
+
+### Visualización de municipios
+
+```{r mapa_municipios}
+#| fig-align: center
+
+
+# Crear mapa de municipios de Guanajuato
+mapa_municipios <- ggplot(municipios_gto) +
+  geom_sf(fill = "olivedrab", color = "white", size = 0.3) +
+  labs(
+    title = "Municipios de Guanajuato",
+    subtitle = paste("Total de municipios:", nrow(municipios_gto)),
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+
+print(mapa_municipios)
+```
+
+### Municipios región Bajío
+
+```{r municipios_importantes}
+#| fig-align: center
+
+# Identificar municipios región Bajío
+municipios_bajio <- c(
+  "Abasolo",
+  "Apaseo el Alto",
+  "Apaseo el Grande",
+  "Celaya",
+  "Comonfort",
+  "Cortazar",
+  "Cuerámaro",
+  "Huanímaro",
+  "Irapuato",
+  "Jaral del Progreso",
+  "León",
+  "Manuel Doblado",
+  "Pénjamo",
+  "Pueblo Nuevo",
+  "Purísima del Rincón",
+  "Romita",
+  "Salamanca",
+  "San Francisco del Rincón",
+  "Santa Cruz de Juventino Rosas",
+  "Silao de la Victoria",
+  "Valle de Santiago",
+  "Villagrán"
+)
+                     
+
+# Crear una variable para destacar estos municipios
+municipios_gto <- municipios_gto %>%
+  mutate(
+    bajio = case_when(
+      NOMGEO %in% municipios_bajio ~ "Bajío",
+      TRUE ~ "Otros"
+    )
+  )
+
+# Crear mapa 
+mapa_bajio <- ggplot(municipios_gto) +
+  geom_sf(aes(fill = bajio), color = "white", size = 0.2) +
+  scale_fill_manual(
+    values = c("Bajío" = "darkblue", "Otros" = "firebrick"),
+    name = "Clasificación"
+  ) +
+  labs(
+    title = "Municipios de la región Bajío en Guanajuato",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10),
+    legend.position = "bottom"
+  )
+
+print(mapa_bajio)
+```
+
+## Análisis espacial básico
+
+
+### Sistema de referencia de coordenadas (CRS)
+
+Además de las geometrías y sus atributos, los objetos espaciales contienen información sobre el **sistema de referencia de coordenadas**, o **CRS** (*Coordinate Reference System*). El CRS establece cómo deben interpretarse las coordenadas asociadas a cada punto y permite relacionarlas con ubicaciones sobre la superficie terrestre.
+
+En términos generales, podemos distinguir dos tipos de sistemas de coordenadas:
+
+* **Sistemas de coordenadas geográficas**, en los que las posiciones se expresan mediante longitud y latitud, generalmente en grados. Un ejemplo ampliamente utilizado es **WGS 84**, identificado mediante el código `EPSG:4326`.
+* **Sistemas de coordenadas proyectadas**, en los que la superficie terrestre se representa sobre un plano y las coordenadas suelen expresarse en unidades lineales, como metros.
+
+La representación de una superficie aproximadamente esférica sobre un plano implica necesariamente algún tipo de **distorsión**. Dependiendo de la proyección utilizada pueden preservarse mejor ciertas propiedades, como las áreas, los ángulos o las distancias, pero no todas simultáneamente.
+
+En `sf` podemos consultar el CRS de un objeto mediante:
+
+
+`st_crs(municipios_gto)`
+
+
+y determinar si las coordenadas corresponden a longitud y latitud mediante:
+
+
+```{r}
+st_is_longlat(municipios_gto)
+```
+
+
+También es posible transformar un objeto espacial de un sistema de referencia a otro con:
+
+
+`municipios_gto_proy <- st_transform(municipios_gto, crs = ...)`
+
+
+Esta distinción es especialmente importante cuando se realizan operaciones como el cálculo de **distancias o áreas**, ya que los resultados dependen de cómo se representa espacialmente la superficie terrestre. Por ello, antes de realizar este tipo de cálculos es conveniente conocer el CRS del objeto y verificar que sea adecuado para la operación que se desea realizar.
+
+
+
+
+
+### Calculando áreas
+
+```{r areas}
+# Calcular área de cada municipio (en km²)
+municipios_gto <- municipios_gto %>%
+  mutate(area_km2 = as.numeric(st_area(.)) / 1e6)  # Convertir m² a km²
+
+# Los 10 municipios de mayor área
+municipios_grandes <- municipios_gto |> 
+  st_drop_geometry() |> 
+  arrange(desc(area_km2)) |> 
+  select(NOMGEO, area_km2) |> 
+  head(10)
+
+print("Los 10 municipios de mayor área de Guanajuato:")
+knitr::kable(municipios_grandes, 
+             col.names = c("Municipio", "Área (km²)"),
+             digits = 2)
+```
+
+### Mapa de áreas
+
+```{r mapa_areas}
+#| fig-align: center
+
+# Crear mapa coloreado por área
+mapa_areas <- ggplot(municipios_gto) +
+  geom_sf(aes(fill = area_km2), color = "white", size = 0.1) +
+  scale_fill_viridis_c(
+    name = "Área\n(km²)",
+    trans = "log10",
+    labels = scales::comma_format()
+  ) +
+  labs(
+    title = "Área de los Municipios de Guanajuato",
+    subtitle = "Coloreado por área en escala logarítmica",
+    caption = "Fuente: INEGI - Marco Geoestadístico"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10),
+    legend.position = "right"
+  )
+
+print(mapa_areas)
+```
