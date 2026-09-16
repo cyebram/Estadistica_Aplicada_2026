@@ -1,0 +1,460 @@
+---
+title: "Distribución Geométrica"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(kableExtra)
+library(gridExtra)
+library(tidyr)
+```
+
+La **distribución geométrica** modela el número de ensayos independientes de Bernoulli necesarios antes de obtener el primer éxito. Es fundamental para analizar tiempos de espera y procesos que involucran la búsqueda del primer evento exitoso.
+
+::: {#def-geometrica}
+Una variable aleatoria $X$ sigue una distribución geométrica si representa el número de ensayos necesarios antes de obtener el primer éxito en una sucesión de ensayos independientes de Bernoulli. Si la probabilidad de éxito en cada ensayo es $p$, entonces la función de probabilidad está dada por:
+
+$$f(x)= p(1-p)^x \quad \text{para } x =0,  1, 2, 3, \ldots$$
+
+Una variable aleatoria $X$ que tiene distribución geométrica será denotada como $X \sim \text{geo}(p)$.
+:::
+
+## Características de la Distribución Geométrica
+
+**Parámetros**
+
+- $p$: probabilidad de éxito en cada ensayo, donde $0 < p \leq 1$
+
+**Función de Distribución**
+
+\begin{equation}
+F(x) = \sum_{u\leq x} f(u) = \begin{cases}
+0 & \text{si } x < 0 \\
+1-(1-p)^{k+1} & \text{si } k \leq x \leq k+1; \quad k=0,1, \dots 
+\end{cases}
+\end{equation}
+
+**Parámetros Estadísticos**
+
+Esperanza (Media): $$E(X) = \frac{1-p}{p}$$
+
+Varianza: $$\text{Var}(X) = \frac{1-p}{p^2}$$
+
+Desviación Estándar: $$\sigma = \sqrt{\frac{1-p}{p^2}} = \frac{\sqrt{1-p}}{p}$$
+
+## Ejemplo 
+
+::: {#exm-geom_1}
+Lanzamiento de monedas: Búsqueda de la primera cara. Consideramos una moneda justa ($p=0.5$), y queremos modelar el número de lanzamientos hasta antes de obtener la primera cara.
+
+```{r}
+#| label: moneda-geometrica
+#| code-fold: true
+
+# Parámetro
+p_cara <- 0.5
+
+# Calcular probabilidades para los primeros 11 ensayos
+k_moneda <- 0:10
+# Prefijo d (density) sufijo es el de la va
+prob_geometrica <- dgeom(k_moneda , p_cara)  
+
+# Crear tabla
+geometrica_moneda <- data.frame(
+  Ensayo = k_moneda,
+  Probabilidad = prob_geometrica,
+  Prob_Acumulada = pgeom(k_moneda, p_cara)
+)
+
+kable(geometrica_moneda, 
+      caption = "Distribución Geométrica - Primera cara (p = 0.5)",
+      digits = 4,
+      col.names = c("Ensayo", "P(X = x)", "P(X ≤ x)")) %>%
+  kable_styling(bootstrap_options = "striped")
+
+# Parámetros estadísticos
+media_moneda <- (1-p_cara) / p_cara
+varianza_moneda <- (1 - p_cara) / (p_cara^2)
+desv_std_moneda <- sqrt(varianza_moneda)
+
+
+cat("Media (ensayos esperados):", media_moneda, "\n")
+cat("Varianza:", varianza_moneda, "\n")
+cat("Desviación estándar:", round(desv_std_moneda, 4), "\n")
+
+```
+
+**Visualización**
+
+```{r}
+#| code-fold: true
+#| fig-align: center
+
+
+#| label: grafico-geometrica-basico
+#| fig-cap: "Distribución Geométrica - Primera cara en lanzamiento de moneda"
+ggplot(geometrica_moneda, aes(x = Ensayo, y = Probabilidad)) +
+  geom_col(fill = "steelblue", alpha = 0.7, width = 0.8) +
+  geom_text(aes(label = round(Probabilidad, 3)), vjust = -0.5, size = 3) +
+  geom_vline(xintercept = media_moneda, color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = media_moneda + 1.5, y = max(prob_geometrica) * 0.8, 
+           label = paste("E(X) =", media_moneda), color = "red") +
+  scale_x_continuous(breaks = k_moneda) +
+  labs(title = paste("Distribución Geométrica( p=", p_cara, ")"),
+       subtitle = "Número de lanzamientos antes de obtener la primera cara",
+       x = "Número de Ensayos",
+       y = "Probabilidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+:::
+
+## Comparación: Efecto del parámetro
+
+A continuación exploramos cómo varía la distribución geométrica al cambiar el parámetro $p$.
+
+```{r}
+#| label: diferentes-p
+#| code-fold: true
+
+
+# Diferentes probabilidades de éxito
+p_values <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+k_max <- 15
+
+# Crear data frame para comparación
+geometrica_comp <- data.frame()
+for(p in p_values) {
+  k_vals <- 0:k_max
+  probs <- dgeom(k_vals, p)  
+  
+  temp_data <- data.frame(
+    p_label = paste("p =", p),
+    k = k_vals,
+    probabilidad = probs,
+    media = (1-p)/p,
+    varianza = (1-p)/(p^2)
+  )
+  geometrica_comp <- rbind(geometrica_comp, temp_data)
+}
+
+# Tabla de parámetros
+parametros_comp <- data.frame(
+  p = p_values,
+  Media = (1-p_values)/p_values,
+  Varianza = (1-p_values)/(p_values^2),
+  Desv_Std = sqrt((1-p_values)/(p_values^2))
+)
+
+kable(parametros_comp, 
+      caption = "Parámetros de la distribución geométrica para diferentes valores de p",
+      digits = 4,
+      col.names = c("p", "Media", "Varianza", "Desv. Std")) |> 
+  kable_styling(bootstrap_options = "striped")
+```
+
+```{r}
+#| label: grafico-diferentes-p
+#| code-fold: true
+#| fig-align: center
+#| fig-cap: "Distribución Geométrica para diferentes valores de p"
+# Filtrar para mejor visualización
+geometrica_filtered <- geometrica_comp[geometrica_comp$probabilidad > 0.005, ]
+
+ggplot(geometrica_filtered, aes(x = k, y = probabilidad, color = p_label)) +
+  geom_line(linewidth = 1, alpha = 0.8, show.legend = FALSE) +
+  geom_point(size = 2, show.legend = FALSE) +
+  scale_color_manual(values = c("red", "green", "blue", "purple", "goldenrod")) +
+  facet_wrap(~p_label, scales = "free") +
+  labs(title = "Distribución Geométrica para diferentes valores de p",
+       x = "Número de Ensayos",
+       y = "Probabilidad",
+       color = "Parámetro") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Propiedades Importantes
+
+### Propiedad de Pérdida de Memoria
+
+Sea $X\sim geo(p)$ Entonces para cualesquiera enteros $s, t \geq 0$ se cumple la propiedad de pérdida de memoria:
+
+$$P(X \geq s + t | X \geq s) = P(X \geq t)$$
+
+**Verificación Numérica**
+
+Consideremos una variable aleatoria geométrica con $p=0.3$, y verifiquemos la propiedad para $s=5$ y $t=3$.
+
+```{r}
+#| label: falta-memoria
+#| code-fold: true
+
+# Demostración de la propiedad de falta de memoria
+p_mem <- 0.3
+s <- 5
+t <- 3
+
+# P(X >= s + t)
+prob_s_t <- 1 - pgeom(s + t-1, p_mem)  
+
+# P(X >= s) 
+prob_s <- 1- pgeom(s-1, p_mem)
+
+# P(X >= t) 
+prob_t <- 1- pgeom(t-1, p_mem)
+
+# P(X >= s + t | X >= s) = P(X >= s + t) / P(X >= s)
+prob_condicional <- prob_s_t / prob_s
+
+cat("Demostración de la Propiedad de Falta de Memoria:\n")
+cat("Parámetros: p =", p_mem, ", s =", s, ", t =", t, "\n\n")
+cat("P(X  ≥", s+t, ") =", round(prob_s_t, 6), "\n")
+cat("P(X  ≥", s, ") =", round(prob_s, 6), "\n")
+cat("P(X  ≥", t, ") =", round(prob_t, 6), "\n\n")
+cat("P(X  ≥", s+t, "| X  ≥", s, ") =", round(prob_condicional, 6), "\n")
+cat("P(X  ≥", t, ") =", round(prob_t, 6), "\n\n")
+cat("¿Son iguales?", abs(prob_condicional - prob_t) < 1e-10, "\n")
+```
+
+
+
+## Ejemplos Aplicados
+
+::: {#exm-geom_calidad}
+**Control de Calidad Industrial**
+
+Una máquina produce piezas defectuosas con probabilidad 0.05. ¿Cuántas piezas debemos inspeccionar antes encontrar la primera defectuosa?
+
+```{r}
+#| label: control-calidad-geometrica
+#| code-fold: true
+#| fig-align: center
+# Parámetros
+p_defecto_geom <- 0.05
+
+# Parámetros estadísticos
+media_defecto <- (1-p_defecto_geom) / p_defecto_geom
+varianza_defecto <- (1 - p_defecto_geom) / (p_defecto_geom^2)
+desv_std_defecto <- sqrt(varianza_defecto)
+
+cat("Control de Calidad - Primera pieza defectuosa:\n")
+cat("Probabilidad de defecto por pieza:", p_defecto_geom, "\n")
+cat("Número esperado de inspecciones:", media_defecto, "\n")
+cat("Desviación estándar:", round(desv_std_defecto, 2), "\n\n")
+
+# Probabilidades específicas
+k_calidad <- 0:50
+prob_calidad <- dgeom(k_calidad, p_defecto_geom)
+
+# Preguntas de interés
+prob_primera_10 <- sum(prob_calidad[1:10])
+prob_mas_20 <- 1 - sum(prob_calidad[1:20])
+prob_entre_10_30 <- sum(prob_calidad[10:30])
+
+cat("Probabilidades de interés:\n")
+cat("P(primera defectuosa en ≤ 10 inspecciones):", round(prob_primera_10, 4), "\n")
+cat("P(primera defectuosa en > 20 inspecciones):", round(prob_mas_20, 4), "\n")
+cat("P(primera defectuosa entre 10 y 30 inspecciones):", round(prob_entre_10_30, 4), "\n")
+
+
+
+# Visualización
+calidad_data <- data.frame(
+  k = k_calidad[1:40],
+  probabilidad = prob_calidad[1:40]
+)
+
+ggplot(calidad_data, aes(x = k, y = probabilidad)) +
+  geom_col(fill = "darkgreen", alpha = 0.7, width = 0.8) +
+  geom_vline(xintercept = media_defecto, color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = media_defecto + 5, y = max(prob_calidad) * 0.8, 
+           label = paste("E(X) =", media_defecto), color = "red") +
+  labs(title = "Control de Calidad: Primera Pieza Defectuosa",
+       subtitle = paste("Geométrica(", p_defecto_geom, ")"),
+       x = "Número de Inspecciones",
+       y = "Probabilidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    legend.position = "bottom",
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+:::
+
+## Simulación: Validación de propiedades teóricas
+
+```{r}
+#| label: simulacion-geometrica
+#| code-fold: true
+
+p_sim <- 0.25
+n_sim <- 10000
+
+# Generar datos geométricos 
+datos_geom <- rgeom(n_sim, p_sim) 
+
+# Estadísticas observadas
+media_obs <- mean(datos_geom)
+var_obs <- var(datos_geom)
+desv_obs <- sd(datos_geom)
+
+# Valores teóricos
+media_teo <- (1-p_sim) / p_sim
+var_teo <- (1 - p_sim) / (p_sim^2)
+desv_teo <- sqrt(var_teo)
+
+cat("Simulación Geométrica (p =", p_sim, "):\n")
+cat("Simulaciones:", n_sim, "\n\n")
+cat("Media teórica:", media_teo, "| Media observada:", round(media_obs, 4), "\n")
+cat("Varianza teórica:", var_teo, "| Varianza observada:", round(var_obs, 4), "\n")
+cat("Desv. Std teórica:", round(desv_teo, 4), "| Desv. Std observada:", round(desv_obs, 4), "\n")
+
+# Comparar distribuciones
+freq_obs <- table(datos_geom[datos_geom <= 20]) / n_sim
+k_comp <- as.numeric(names(freq_obs))
+prob_teo <- dgeom(k_comp, p_sim)
+
+comparacion_sim <- data.frame(
+  k = k_comp,
+  Freq_Observada = as.numeric(freq_obs),
+  Prob_Teorica = prob_teo,
+  Diferencia = abs(as.numeric(freq_obs) - prob_teo)
+)
+
+kable(head(comparacion_sim, 12), 
+      caption = "Comparación frecuencias observadas vs probabilidades teóricas",
+      digits = 4,
+      col.names = c("k", "Freq. Observada", "Prob. Teórica", "Diferencia")) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+**Visualización de la comparación**
+
+
+```{r}
+#| code-fold: true
+#| fig-align: center
+
+comp_sim_long <- comparacion_sim |> 
+  pivot_longer(cols = c("Freq_Observada", "Prob_Teorica"), 
+               names_to = "Tipo", values_to = "Valor") |> 
+  mutate(Tipo = recode(Tipo, 
+                       "Freq_Observada" = "Simulada", 
+                       "Prob_Teorica" = "Teórica"))
+
+
+
+
+ggplot(comp_sim_long, aes(x = k, y = Valor, fill = Tipo)) +
+  geom_col(position = "dodge", alpha = 0.7) +
+  scale_fill_manual(values = c("Teórica" = "blue", "Simulada" = "red")) +
+  scale_x_continuous(breaks = seq(0, 20, by = 1)) +
+  labs(title = paste("Comparación: Geométrica(", p_sim, ") - ", n_sim, "simulaciones"),
+       x = "Número de Ensayos",
+       y = "Probabilidad/Frecuencia",
+       fill = "Distribución") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=10),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+
+```
+
+
+
+
+
+
+
+
+## Ejercicios Propuestos
+
+
+
+::: {#exr-geom_1}
+Una máquina tiene probabilidad 0.02 de producir una pieza defectuosa.
+
+a) Brindar las gráficas de la función de probabilidad y la función de distribución (probabilidad acumulada)   
+
+b)  Calcula los valores de la esperanza, varianza y desviación estándar.
+
+c) Genera una simulación de 10,000 ensayos y compara los resultados con los valores teóricos.
+
+d)  Verifica la propiedad de falta de memoria para este problema.
+:::
+
+
+::: {#exr-geom_2}
+
+Generar $k=1000$ muestras de tamaño $n=50$ de una distribución geométrica para alguna $p$, y verificar el Teorema Central del Límite para las medias muestrales.
+
+
+:::

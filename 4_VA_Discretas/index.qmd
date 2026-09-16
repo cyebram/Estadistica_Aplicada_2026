@@ -1,0 +1,34 @@
+# Contenido {.unnumbered}
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+<br>
+
+Este documento explora diferentes distribuciones de las variables aleatorias discretas más comunes; brindando sus definiciones, funciones de probabilidad, funciones de distribución, parámetros, parámetros estadísticos (media, varianza, desviación estándar), resultados importantes y ejemplos prácticos.
+
+Se presentan las siguientes distribuciones discretas:
+
+- Distribución Uniforme Discreta
+
+- Distribuciones Bernoulli y Binomial
+
+- Distribución Geométrica
+
+- Distribución Binomial Negativa
+
+- Distribución Hipergeométrica
+
+- Distribución de Poisson
+
+Al final de cada sección se incluyen ejercicios que deben ser resueltos para reforzar el aprendizaje.
+
+<br>
+
+Referencia:
+
+- Rincón, Luis (2014). *Introducción a la Probabilidad*. Facultad de Ciencias, UNAM.

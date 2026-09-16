@@ -1,0 +1,372 @@
+---
+title: "Distribución Uniforme Discreta"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(gridExtra)
+```
+
+<br>
+
+La **distribución uniforme discreta** es una de las distribuciones de probabilidad más elementales. Se caracteriza porque todos los valores posibles de la variable aleatoria tienen la misma probabilidad de ocurrir.
+
+::: {#def-vaunif}
+Una variable aleatoria discreta $X$ sigue una distribución uniforme discreta en el conjunto de $n$ números $\{x_1, x_2, \ldots, x_n\}$ si:
+
+\begin{equation}
+f(x) =  \begin{cases} 
+\frac{1}{n} & \text{si } x \in \{x_1, x_2, \ldots, x_n\} \\
+0 & \text{en otro caso}
+\end{cases}
+\end{equation}
+
+Para denotar que una variable aleatoria $X$ tiene distribución uniforme escribimos:
+
+\begin{equation}
+X \sim \text{unif} \{x_1, x_2, \ldots, x_n\}
+\end{equation}
+:::
+
+## Características Principales
+
+**Función de Probabilidad**
+
+\begin{equation}
+f(x) = P(X = x) = \begin{cases} 
+\frac{1}{n} & \text{si } x \in \{x_1, x_2, \ldots, x_n\} \\
+0 & \text{en otro caso}
+\end{cases}
+\end{equation}
+
+**Parámetros Estadísticos**
+
+Esperanza (Media):
+
+\begin{equation}
+E(X) = \frac{1}{n}\sum_{i=1}^n x_i = \mu
+\end{equation}
+
+Varianza:
+
+\begin{equation}
+\text{Var}(X) = \frac{1}{n}\sum_{i=1}^n (x_i-\mu)^2
+\end{equation}
+
+## Ejemplos y Aplicaciones
+
+::: {#exm-dado}
+### Lanzamiento de un dado
+
+Un dado justo representa una distribución $X\sim \text{unif} \{1, 2, 3, 4, 5, 6\}$.
+
+```{r}
+#| code-fold: true
+#| label: dado-ejemplo
+
+# Parámetros del dado
+x_1 <- 1
+x_6 <- 6
+valores <- x_1:x_6
+probabilidades <- rep(1/length(valores), length(valores))
+
+# Crear data frame
+dado_data <- data.frame(
+  Valor = valores,
+  Probabilidad = probabilidades
+)
+
+# Mostrar tabla
+kable(dado_data, 
+      caption = "Distribución de probabilidad de un dado",
+      align = "cc") %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+**Cálculo de parámetros:**
+
+```{r}
+#| code-fold: true
+#| label: parametros-dado
+# Media
+media <- sum(dado_data$Valor)/length(dado_data$Valor)
+cat("Media:", media, "\n")
+
+# Varianza
+varianza <- sum((dado_data$Valor- media)^2)/length(dado_data$Valor)
+cat("Varianza:", varianza, "\n")
+
+# Desviación estándar
+desv_std <- sqrt(varianza)
+cat("Desviación estándar:", round(desv_std, 4), "\n")
+```
+
+### Visualización
+
+```{r}
+#| code-fold: true
+#| label: grafico-dado
+#| fig-cap: "Función de probabilidad de un dado"
+
+ggplot(dado_data, aes(x = Valor, y = Probabilidad)) +
+  geom_col(fill = "steelblue", alpha = 0.7, width = 0.6) +
+  geom_text(aes(label = round(Probabilidad, 3)), vjust = -0.5) +
+  scale_x_continuous(breaks = valores) +
+  scale_y_continuous(limits = c(0, 0.20)) +
+  labs(title = "Distribución Uniforme Discreta - Dado",
+       x = "Valor",
+       y = "Probabilidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+:::
+
+::: {#exm-num_random}
+### Selección aleatoria de números
+
+Supongamos que seleccionamos aleatoriamente un número entero entre 10 y 20 (inclusive).
+
+**Cálculo de parámetros:**
+
+```{r}
+#| code-fold: true
+#| label: ejemplo-numeros
+
+x2_1 <- 10
+x2_n <- 20
+valores2 <- x2_1:x2_n
+probabilidades2 <- rep(1/(length(valores2)), length(valores2))
+
+# Data_frame
+data2 <- data.frame(
+  Valor = valores2,
+  Probabilidad = probabilidades2
+)
+
+# Parámetros estadísticos
+media2 <- mean(data2$Valor)
+varianza2 <- sum((data2$Valor - media2)^2)/length(data2$Valor)
+desv_std2 <- sqrt(varianza2)
+
+cat("Media:", media2, "\n")
+cat("Varianza:", round(varianza2, 4), "\n")
+cat("Desviación estándar:", round(desv_std2, 4), "\n")
+```
+
+**Visualización de la función de probabilidad:**
+
+```{r}
+#| label: grafico-numeros
+#| code-fold: true
+#| fig-align: "center"
+#| fig-cap: "Distribución uniforme discreta entre 10 y 20"
+
+
+ggplot(data2, aes(x = Valor, y = Probabilidad)) +
+  geom_col(fill = "darkgreen", alpha = 0.7, width = 0.8) +
+  geom_text(aes(label = round(Probabilidad, 3)), 
+            vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = seq(10, 20, 1)) +
+  labs(title = "Distribución Uniforme Discreta",
+       x = "Valor",
+       y = "Probabilidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+:::
+
+::: {#exm-simulacion}
+### Simulación en R
+
+Generación de números aleatorios de una variable aleatoria $X\sim unif\{1, 2, 3, 4, 5, 6\}$ y comparación con las probabilidades teóricas.
+
+```{r}
+#| code-fold: true
+#| label: simulacion
+
+# Generar 1000 números aleatorios
+n_sim <- 1000
+muestra <- sample(1:6, n_sim, replace = TRUE)
+
+# Frecuencias observadas
+freq_obs <- table(muestra)
+freq_rel <- prop.table(freq_obs)
+
+# Comparar con probabilidades teóricas
+comparacion <- data.frame(
+  Valor = 1:6,
+  Prob_Teorica = rep(1/6, 6),
+  Freq_Observada = as.numeric(freq_rel)
+)
+
+kable(comparacion, 
+      caption = "Comparación entre probabilidades teóricas y observadas",
+      col.names = c("Valor", "Prob. Teórica", "Freq. Observada"),
+      digits = 4) |> 
+  kable_styling(bootstrap_options = "striped")
+```
+
+<br>
+
+**Visualización de la simulación**
+
+```{r}
+#| code-fold: true
+#| label: grafico-simulacion
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+#| fig-cap: "Comparación entre distribución teórica y simulada"
+
+
+
+ggplot(comparacion) +
+  geom_col(aes(x=Valor, y=Freq_Observada),alpha = 0.7, fill="firebrick") +
+  scale_x_continuous(breaks = 1:6) +
+  geom_hline(yintercept = 1/6, color = "blue", linetype = "dashed", linewidth = 1) +
+  annotate("text", x=3.5, y=1/6 + 0.01, label="Probabilidad Teórica = 1/6", color = "black", size=5) +
+  labs(title = paste("Simulación con", n_sim, "observaciones"),
+       x = "Valor",
+       y = "Probabilidad") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom")
+```
+:::
+
+## Aplicaciones Prácticas
+
+La distribución uniforme discreta tiene múltiples aplicaciones:
+
+1.  **Juegos de azar**: Dados, ruletas, sorteos
+2.  **Muestreo**: Selección aleatoria de elementos
+3.  **Simulación**: Generación de números aleatorios equiprobables
+4.  **Investigación**: Asignación aleatoria de tratamientos
+
+## Propiedades Importantes
+
+### Relación con otras distribuciones
+
+- Caso especial de la distribución categórica con probabilidades iguales
+- Límite discreto de la distribución uniforme continua
+- Base para generar otras distribuciones discretas
+
+### Teorema Central del Límite
+
+Verifiquemos el Teorema Central del Límite mediante simulación para el caso de variables aleatorias con distribución uniforme discreta.
+
+Generaremos $k=1000$ muestras cada una de tamaño $n=30$ de una distribución uniforme discreta en el conjunto $\{1, 2, 3, 4, 5, 6\}$ y observaremos la distribución de sus medias muestrales. En el @exm-dado se obtuvo que para $X\sim \text{unif}\{1, 2, 3, 4, 5, 6\}$ tenemos $\mu=7/2$ y $\sigma^2= 35/12$, luego la media muestral:
+
+$$\bar{X}_{30}=\frac{1}{30}\sum_{i=1}^{30} X_i$$ Tendrá aproximadamente la siguiente distribución:
+
+$$\bar{X}_n \sim N\left(\mu, \frac{\sigma^2}{n} \right)$$
+
+Es decir
+
+$$\bar{X}_{30} \sim N\left(\frac{7}{2}, \frac{7}{72} \right)$$
+
+```{r}
+#| code-fold: true
+#| label: limite-central
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+#| fig-cap: "Verificación del Teorema Central del Límite"
+# Simular medias muestrales
+
+k_muestra <- 1000
+n_muestra <- 30
+
+medias_muestrales <- replicate(k_muestra, {
+  muestra <- sample(1:6, n_muestra, replace = TRUE)
+  mean(muestra)
+})
+
+# Crear histograma
+hist_data <- data.frame(Medias = medias_muestrales)
+
+ggplot(hist_data) +
+  geom_histogram(aes(x=Medias, after_stat(density)), bins = 30, 
+                 fill = "lightblue", alpha = 0.7, color = "black") +
+  geom_density(aes(x = Medias), color = "red", linewidth = 1) +
+  geom_vline(xintercept = mean(medias_muestrales), 
+             color = "blue", linetype = "dashed", linewidth = 1) +
+  labs(title = "Distribución de Medias Muestrales",
+       subtitle = paste("n =", n_muestra, " de una v.a. uniforme(1,6)"),
+       x = "Media Muestral",
+       y = "Densidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+
+# Estadísticas
+cat("Media teórica:", (1+6)/2, "\n")
+cat("Media observada:", round(mean(medias_muestrales), 4), "\n")
+cat("Varianza teórica de la media:", round(((6-1+1)^2-1)/12/n_muestra, 4), "\n")
+cat("Varianza observada de la media:", round(var(medias_muestrales), 4), "\n")
+```
+
+## Ejercicios Propuestos
+
+::: {#exr-simulacion_1}
+Simular 500 observaciones de una distribución uniforme discreta en {0, 1, 2, 3, 4} y compara las frecuencias observadas con las teóricas.
+:::
+
+::: {#exr-simulacion_2}
+Generar $k=1000$ muestras de tamaño $n=50$ de una distribución uniforme discreta en $\{1, 2, \dots, 9, 10\}$ y verificar el Teorema Central del Límite para las medias muestrales.
+:::

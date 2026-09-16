@@ -1,0 +1,459 @@
+---
+title: "Distribución Binomial Negativa"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(gridExtra)
+library(plotly)
+```
+
+La **distribución binomial negativa** modela el número de fracasos que ocurren antes de obtener exactamente $r$ éxitos en una sucesión de ensayos independientes de Bernoulli, donde cada ensayo tiene una probabilidad constante $p$ de éxito.
+
+::: {#def-binom_neg}
+Si $X$ es una variable aleatoria que sigue una distribución binomial negativa, entonces $X$ representa el número de fracasos antes de obtener el $r$-ésimo éxito. La función probabilidad está dada por:
+
+$$f(x) = \binom{r + x - 1}{x} p^r (1-p)^x$$
+
+donde $x = 0, 1, 2, 3, \ldots$ representa el número de fracasos. Una variable aleatoria con esta distribución se denota como: $X \sim \text{BinNeg}(r, p)$
+:::
+
+## Características
+
+**Parámetros**
+
+La distribución binomial negativa tiene dos parámetros:
+
+- $r$: Número de éxitos deseados (entero positivo, $r \geq 1$)
+- $p$: Probabilidad de éxito en cada ensayo ($0 < p \leq 1$)
+
+**Parámetros Estadísticos**
+
+Media (Esperanza):
+
+$$E(X) = \frac{r(1-p)}{p}$$
+
+Varianza:
+
+$$\text{Var}(X) = \frac{r(1-p)}{p^2}$$
+
+Desviación estándar:
+
+$$\sigma = \sqrt{\frac{r(1-p)}{p^2}}$$
+
+**Función de Distribución (Probabilidad Acumulada):**
+
+$$F(x) = P(X \leq x) = \sum_{i=0}^{x} \binom{r + i - 1}{i} p^r (1-p)^i$$
+
+## Ejemplo Básico
+
+Un estudiante está practicando tiros libres de baloncesto. Su probabilidad de anotar es $p = 0.6$. ¿Cuál es la probabilidad de que falle exactamente 3 tiros antes de anotar su segundo tiro libre?
+
+**Parámetros:**
+
+- $r = 2$ (queremos el segundo éxito)
+- $p = 0.6$ (probabilidad de éxito)
+- $k = 3$ (número de fracasos)
+
+**Cálculo:**
+
+```{r ejemplo-basico}
+# Parámetros
+r <- 2
+p <- 0.6
+k <- 3
+
+# Cálculo de la probabilidad
+prob <- choose(k + r - 1, k) * (p^r) * ((1-p)^k)
+cat("P(X = 3) =", round(prob, 4))
+
+# Verificación usando R
+prob_r <- dnbinom(k, size = r, prob = p)
+cat("\nVerificación con R:", round(prob_r, 4))
+```
+
+**Interpretación:** La probabilidad de fallar exactamente 3 tiros antes de anotar el segundo tiro libre es aproximadamente `r round(prob, 4)`.
+
+**Parámetros estadísticos del ejemplo**
+
+```{r parametros-ejemplo}
+# Media
+media <- r * (1 - p) / p
+cat("Media:", round(media, 4))
+
+# Varianza
+varianza <- r * (1 - p) / (p^2)
+cat("\nVarianza:", round(varianza, 4))
+
+# Desviación estándar
+desv_std <- sqrt(varianza)
+cat("\nDesviación estándar:", round(desv_std, 4))
+```
+
+## Comparación: Efecto de los Parámetros
+
+### Efecto del parámetro $r$ (número de éxitos)
+
+```{r efecto-r, fig.cap="Efecto del parámetro r en la distribución binomial negativa"}
+# Valores de k para graficar
+k_vals <- 0:20
+
+# Diferentes valores de r, p fijo
+r_values <- c(1, 2, 5, 10)
+p_fixed <- 0.4
+
+# Crear data frame para ggplot
+data_r <- expand.grid(k = k_vals, r = r_values)
+data_r$p <- p_fixed
+data_r$prob <- dnbinom(data_r$k, size = data_r$r, prob = data_r$p)
+data_r$r <- factor(data_r$r, labels = paste("r =", r_values))
+
+# Gráfico
+plot_r <- ggplot(data_r, aes(x = k, y = prob, fill = r)) +
+  geom_col(position = "dodge", alpha = 0.7) +
+  scale_x_continuous(breaks = k_vals) +
+  labs(title = "Efecto del parámetro r (p = 0.4 fijo)",
+       x = "Número de fracasos (k)",
+       y = "Probabilidad",
+       fill = "Parámetro r") +
+  theme_minimal() +
+  scale_fill_brewer(type = "qual", palette = "Set1")
+
+ggplotly(plot_r)
+```
+
+### Efecto del parámetro $p$ (probabilidad de éxito)
+
+```{r efecto-p, fig.cap="Efecto del parámetro p en la distribución binomial negativa"}
+# Diferentes valores de p, r fijo
+p_values <- c(0.2, 0.4, 0.6, 0.8)
+r_fixed <- 3
+
+# Crear data frame para ggplot
+data_p <- expand.grid(k = k_vals, p = p_values)
+data_p$r <- r_fixed
+data_p$prob <- dnbinom(data_p$k, size = data_p$r, prob = data_p$p)
+data_p$p <- factor(data_p$p, labels = paste("p =", p_values))
+
+# Gráfico
+plot_p <- ggplot(data_p, aes(x = k, y = prob, fill = p)) +
+  geom_col(position = "dodge", alpha = 0.7) +
+  scale_x_continuous(breaks = k_vals) +
+  labs(title = "Efecto del parámetro p (r = 3 fijo)",
+       x = "Número de fracasos (k)",
+       y = "Probabilidad",
+       fill = "Parámetro p") +
+  theme_minimal() +
+  scale_fill_brewer(type = "qual", palette = "Set2")
+
+ ggplotly(plot_p)
+```
+
+### Tabla comparativa de parámetros estadísticos
+
+```{r tabla-comparativa}
+# Crear tabla con diferentes combinaciones de parámetros
+combinaciones <- expand.grid(
+  r = c(2, 5, 10),
+  p = c(0.3, 0.5, 0.7)
+)
+
+combinaciones$Media <- combinaciones$r * (1 - combinaciones$p) / combinaciones$p
+combinaciones$Varianza <- combinaciones$r * (1 - combinaciones$p) / (combinaciones$p^2)
+combinaciones$Desv_Std <- sqrt(combinaciones$Varianza)
+
+# Redondear para mejor presentación
+combinaciones[3:5] <- round(combinaciones[3:5], 3)
+
+kable(combinaciones, 
+      caption = "Parámetros estadísticos para diferentes valores de r y p",
+      col.names = c("r", "p", "Media", "Varianza", "Desv. Estándar"))
+```
+
+### Observaciones sobre el efecto de los parámetros
+
+**Efecto de** $r$:
+
+- Al aumentar $r$, la distribución se desplaza hacia la derecha (mayor media)
+- La variabilidad también aumenta
+- Para $r = 1$, se obtiene la distribución geométrica
+
+**Efecto de** $p$:
+
+- Al aumentar $p$ (mayor probabilidad de éxito), la distribución se concentra más cerca de cero
+- La media y varianza disminuyen cuando $p$ aumenta
+
+## Simulación de Valores y Comparación con la Teórica
+
+Consideremos una variable aleatoria $X \sim \text{BinNeg}(r=5, p=0.3)$. Simularemos 10,000 valores y compararemos las estadísticas obtenidas con las teóricas.
+
+```{r simulacion-basica}
+# Parámetros para la simulación
+r <- 5
+p <- 0.3
+n_sim <- 10000
+
+# Simulación de valores
+set.seed(422)
+valores_simulados <- rnbinom(n_sim, size = r, prob = p)
+
+# Estadísticas de la simulación
+media_sim <- mean(valores_simulados)
+var_sim <- var(valores_simulados)
+sd_sim <- sd(valores_simulados)
+
+# Valores teóricos
+media_teorica <- r * (1 - p) / p
+var_teorica <- r * (1 - p) / (p^2)
+sd_teorica <- sqrt(var_teorica)
+
+# Tabla comparativa
+comparacion <- data.frame(
+  Estadística = c("Media", "Varianza", "Desv. Estándar"),
+  Teórica = c(media_teorica, var_teorica, sd_teorica),
+  Simulada = c(media_sim, var_sim, sd_sim),
+  Diferencia = c(abs(media_teorica - media_sim), 
+                 abs(var_teorica - var_sim), 
+                 abs(sd_teorica - sd_sim))
+)
+
+kable(comparacion, digits = 4, 
+      caption = paste("Comparación teórica vs simulada (r =", r, ", p =", p, ")"))
+```
+
+**Visualización**
+
+```{r grafico-comparacion, fig.cap="Comparación entre distribución teórica y simulada"}
+# Rango de valores para comparar
+k_max <- quantile(valores_simulados, 0.99)
+k_vals <- 0:k_max
+
+# Probabilidades teóricas
+prob_teorica <- dnbinom(k_vals, size = r, prob = p)
+
+# Frecuencias relativas de la simulación
+freq_simulada <- table(factor(valores_simulados, levels = k_vals))
+freq_relativa <- as.numeric(freq_simulada) / n_sim
+
+# Crear data frame para ggplot
+data_comp <- data.frame(
+  k = rep(k_vals, 2),
+  Probabilidad = c(prob_teorica, freq_relativa),
+  Tipo = rep(c("Teórica", "Simulada"), each = length(k_vals))
+)
+
+# Gráfico de barras comparativo
+ggplot(data_comp, aes(x = k, y = Probabilidad, fill = Tipo)) +
+  geom_col(position = "dodge", alpha = 0.7, width = 0.8) +
+  labs(title = paste("Distribución Binomial Negativa: Teórica vs Simulada"),
+       subtitle = paste("r =", r, ", p =", p, ", n =", format(n_sim, big.mark = ",")),
+       x = "Número de fracasos (k)",
+       y = "Probabilidad / Frecuencia relativa",
+       fill = "Distribución") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  scale_fill_manual(values = c("Teórica" = "#2E86C1", "Simulada" = "#E74C3C")) 
+```
+
+**Convergencia de la Simulación**
+
+```{r convergencia, fig.cap="Convergencia de la media simulada hacia la teórica"}
+# Diferentes tamaños de muestra
+tamaños <- seq(100, 10000, by = 100)
+medias_acumuladas <- sapply(tamaños, function(n) mean(valores_simulados[1:n]))
+
+# Data frame para el gráfico
+data_conv <- data.frame(
+  n = tamaños,
+  Media_simulada = medias_acumuladas,
+  Media_teorica = media_teorica
+)
+
+# Gráfico de convergencia
+ggplot(data_conv) +
+  geom_line(aes(x = n, y = Media_simulada), color = "#E74C3C", linewidth = 1) +
+  geom_hline(yintercept = media_teorica, color = "#2E86C1", 
+             linetype = "dashed", linewidth = 1.2) +
+  labs(title = "Convergencia de la Media Simulada",
+       subtitle = paste("Línea azul: Media teórica =", round(media_teorica, 3)),
+       x = "Tamaño de muestra",
+       y = "Media") +
+  theme_minimal() +
+  annotate("text", x = 7500, y = media_teorica + 0.3, 
+           label = paste("Media teórica:", round(media_teorica, 3)), 
+           color = "#2E86C1")
+```
+
+
+
+## Aproximación con la Distribución Normal
+
+### Fundamento Teórico
+
+Cuando $r$ es grande, la distribución binomial negativa se puede aproximar a una distribución normal:
+
+$$X \sim \text{BinNeg}(r, p) \approx N\left(\mu = \frac{r(1-p)}{p}, \sigma^2 = \frac{r(1-p)}{p^2}\right)$$
+
+### Verificación con Simulación
+
+
+Consideramos una variable aleatoria $X \sim \text{BinNeg}(r, p)$ con $p = 0.3$ y diferentes valores de $r$. Simularemos 5000 valores para cada $r$ y compararemos la distribución simulada con la aproximación normal.
+
+```{r normal-ver, fig.cap="Aproximación normal para diferentes valores de r"}
+# Parámetros para TCL
+p <- 0.3
+r_vals <- c(5, 10, 20, 50)
+n_sim <- 5000
+
+# Función para crear datos de comparación
+crear_datos <- function(r_val, p_val, n_sim) {
+  # Simulación
+  sim_vals <- rnbinom(n_sim, size = r_val, prob = p_val)
+  
+  # Parámetros teóricos
+  mu <- r_val * (1 - p_val) / p_val
+  sigma2 <- r_val * (1 - p_val) / (p_val^2)
+  sigma <- sqrt(sigma2)
+  
+  # Normalizar
+  z_vals <- (sim_vals - mu) / sigma
+  
+  return(list(
+    originales = sim_vals,
+    normalizados = z_vals,
+    mu = mu,
+    sigma = sigma,
+    r = r_val
+  ))
+}
+
+# Generar datos para cada r
+datos <- lapply(r_vals, crear_datos, p_val = p, n_sim = n_sim)
+
+# Crear data frame para ggplot
+data_graph <- do.call(rbind, lapply(1:length(datos), function(i) {
+  data.frame(
+    valores_norm = datos[[i]]$normalizados,
+    r_valor = paste("r =", datos[[i]]$r)
+  )
+}))
+
+# Gráfico de densidad con aproximación normal
+ggplot(data_graph, aes(x = valores_norm)) +
+  geom_histogram(aes(y = after_stat(density)), alpha = 0.6, bins = 30, fill = "#3498DB") +
+  stat_function(fun = dnorm, args = list(mean = 0, sd = 1), 
+                color = "#E74C3C", linewidth = 1.2, linetype = "dashed") +
+  facet_wrap(~r_valor, scales = "free") +
+  labs(title = "Aproximación Normal (Teorema Central del Límite)",
+       subtitle = paste("Valores normalizados, p =", p, 
+                       ". Línea roja: N(0,1)"),
+       x = "Valores normalizados (Z)",
+       y = "Densidad") +
+  theme_minimal()
+```
+
+## Relación con la Suma de Variables Geométricas
+
+::: {#prp-binneg_geo}
+Si $X_1, X_2, \ldots, X_r$ son variables aleatorias independientes e idénticamente distribuidas con distribución geométrica de parámetro $p$ (número de fracasos antes del primer éxito), entonces:
+
+$$Y = X_1 + X_2 + \cdots + X_r \sim \text{BinNeg}(r, p)$$
+
+Es decir, la suma de $r$ variables aleatorias geométricas independientes sigue una distribución binomial negativa con parámetros $r$ y $p$.
+:::
+
+**Justificación intuitiva**
+
+- Cada $X_i$ cuenta los fracasos antes del $i$-ésimo éxito
+- $Y = \sum_{i=1}^r X_i$ cuenta el total de fracasos antes de obtener $r$ éxitos
+- Esto es exactamente lo que modela la distribución binomial negativa
+
+### Verificación por Simulación
+
+```{r simulacion-proposicion}
+# Parámetros
+r <- 4
+p <- 0.3
+n_sim <- 10000
+
+set.seed(42)
+
+# Método 1: Generar r variables geométricas y sumarlas
+suma_geometricas <- replicate(n_sim, {
+  geometricas <- rgeom(r, prob = p)  # rgeom en R usa la definición estándar
+  sum(geometricas)
+})
+
+# Método 2: Generar directamente de binomial negativa
+binomial_negativa <- rnbinom(n_sim, size = r, prob = p)
+
+# Comparar estadísticas
+stats_comparacion <- data.frame(
+  Método = c("Suma de Geométricas", "Binomial Negativa Directa"),
+  Media = c(mean(suma_geometricas), mean(binomial_negativa)),
+  Varianza = c(var(suma_geometricas), var(binomial_negativa)),
+  Desv_Std = c(sd(suma_geometricas), sd(binomial_negativa)),
+  Min = c(min(suma_geometricas), min(binomial_negativa)),
+  Max = c(max(suma_geometricas), max(binomial_negativa))
+)
+
+# Valores teóricos
+media_teorica <- r * (1 - p) / p
+var_teorica <- r * (1 - p) / (p^2)
+
+stats_comparacion$Dif_Media_Teorica <- abs(stats_comparacion$Media - media_teorica)
+stats_comparacion$Dif_Var_Teorica <- abs(stats_comparacion$Varianza - var_teorica)
+
+kable(stats_comparacion, digits = 4,
+      caption = paste("Verificación de la proposición (r =", r, ", p =", p, ")"))
+
+cat("Valores teóricos:\n")
+cat("Media:", round(media_teorica, 4), "\n")
+cat("Varianza:", round(var_teorica, 4), "\n")
+```
+
+```{r comparacion-distribuciones, fig.cap="Comparación de histogramas: Suma de geométricas vs Binomial negativa"}
+# Crear data frame para comparación
+data_comparacion <- data.frame(
+  valores = c(suma_geometricas, binomial_negativa),
+  metodo = rep(c("Suma de r=4 Geométricas", "Binomial Negativa (r=4)"), 
+               each = n_sim)
+)
+
+# Histogramas comparativos
+ggplot(data_comparacion, aes(x = valores, fill = metodo)) +
+  geom_histogram(alpha = 0.6, bins = 30, position = "identity") +
+  facet_wrap(~metodo, ncol = 1) +
+  labs(title = "Verificación de la Proposición: Suma de Geométricas = Binomial Negativa",
+       subtitle = paste("r =", r, ", p =", p, ", n =", format(n_sim, big.mark = ",")),
+       x = "Número de fracasos",
+       y = "Frecuencia") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("#3498DB", "#E74C3C"))
+```
+
+
+
+## Ejercicios Propuestos
+
+::: {#exr-grafico}
+Implementa una función que tome como parámetros $(r, p, n_{sim})$ y devuelva un gráfico comparativo entre la suma de geométricas y la binomial negativa.
+:::
+
+::: {#exr-tcl_binneg}
+
+Generar $k=1000$ muestras de tamaño 50 de una distribución binomial negativa con parámetros $r\geq 1$ y $0<p<1$. Verificar el Teorema Central del Límite para las medias muestrales. No confundir con la aproximación a la distribución normal.
+:::
+
+
