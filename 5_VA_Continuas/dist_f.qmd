@@ -1,0 +1,571 @@
+---
+title: "Distribución F"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(plotly)
+library(viridis)
+library(RColorBrewer)
+library(kableExtra)
+library(knitr)
+```
+
+La distribución F de Fisher-Snedecor es una distribución de probabilidad continua fundamental en estadística inferencial, particularmente en el análisis de varianza (ANOVA) y en pruebas de comparación de varianzas. Esta distribución lleva el nombre de Ronald Fisher y George W. Snedecor, dos pioneros de la estadística moderna.
+
+::: {#def-va_fisher}
+Una variable aleatoria continua $X$ sigue una distribución $F$ de Fisher-Snedecor con parámetros $a > 0$ y $b > 0$, denotada como $X \sim F(a, b)$, si su función de densidad de probabilidad está dada por:
+
+\begin{equation}
+f(x) = \begin{cases}
+\displaystyle\frac{\Gamma\left(\frac{a+b}{2}\right)}{\Gamma\left(\frac{a}{2}\right)\Gamma\left(\frac{b}{2}\right)} \left(\frac{a}{b}\right)^{a/2} x^{a/2-1} \left(1 + \frac{a}{b}x\right)^{-(a+b)/2} & \text{si } x > 0, \\
+0 & \text{en otro caso.}
+\end{cases}
+\end{equation}
+
+donde $\Gamma(\cdot)$ representa la función gamma.
+:::
+
+**Parámetros**
+
+Los parámetros $a$ y $b$ de la distribución $F$ tienen interpretaciones específicas según el contexto:
+
+- **Grados de libertad del numerador**: El parámetro $a$ frecuentemente se denota como $d_1$, $\nu_1$, o $df_1$, y representa los grados de libertad asociados al numerador en la razón de varianzas.
+
+- **Grados de libertad del denominador**: El parámetro $b$ comúnmente se expresa como $d_2$, $\nu_2$, o $df_2$, y representa los grados de libertad asociados al denominador en la razón de varianzas.
+
+Por lo tanto, es común encontrar la notación alternativa $X \sim F(d_1, d_2)$ o $X \sim F(\nu_1, \nu_2)$.
+
+La presencia explícita de ambos parámetros en la notación $F(a, b)$ es importante porque la distribución F **no es simétrica** con respecto al intercambio de parámetros, es decir, $F(a, b) \neq F(b, a)$. Esta asimetría refleja el hecho de que los roles del numerador y denominador en las aplicaciones estadísticas son distintos y no intercambiables.
+
+## Propiedades de la PDF
+
+**1. Dominio e imagen.**
+
+- **Dominio**: $x \in (0, \infty)$
+- **Imagen**: $f(x) \in [0, \infty)$
+
+La distribución F solo está definida para valores positivos de $x$.
+
+**2. Moda.**
+
+La moda de la distribución F existe cuando $a > 2$ y está dada por:
+
+$$\text{Moda} = \frac{b(a-2)}{a(b+2)}$$
+
+Cuando $a \leq 2$, la distribución es estrictamente decreciente y la moda se encuentra en $x = 0^+$.
+
+**3. Asimetría.**
+
+La distribución F es **asimétrica positiva** (sesgada hacia la derecha) para todos los valores de los parámetros. La asimetría disminuye a medida que aumentan los grados de libertad.
+
+**4. Relación con otras distribuciones.**
+
+- Si $X \sim F(a, b)$, entonces $\frac{1}{X} \sim F(b, a)$
+- Si $X \sim \chi^2(a)$ y $Y \sim \chi^2(b)$ son independientes, entonces $\frac{X/a}{Y/b} \sim F(a, b)$
+- Cuando $a = 1$, la distribución F está relacionada con la distribución t de Student: si $T \sim t(b)$, entonces $T^2 \sim F(1, b)$
+
+**Visualización de la PDF**
+
+A continuación se presentan las gráficas de la función de densidad para diferentes combinaciones de grados de libertad:
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+# Definir rango de x
+x <- seq(0, 5, length.out = 500)
+
+# Gráfica 1: Variando el primer parámetro (a), fijo b = 10
+df1 <- data.frame(
+  x = rep(x, 4),
+  y = c(df(x, 2, 10), df(x, 5, 10), df(x, 10, 10), df(x, 20, 10)),
+  Parametros = rep(c("F(2, 10)", "F(5, 10)", "F(10, 10)", "F(20, 10)"), each = length(x))
+)
+
+p1 <- ggplot(df1, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando grados de libertad del numerador (a)",
+       subtitle = "Denominador fijo: b = 10",
+       x = "x", y = "f(x)") +
+  scale_color_manual(values = c("F(2, 10)" = "steelblue", "F(5, 10)" = "darkorange", 
+                                        "F(10, 10)" = "forestgreen", "F(20, 10)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Gráfica 2: Variando el segundo parámetro (b), fijo a = 5
+df2 <- data.frame(
+  x = rep(x, 4),
+  y = c(df(x, 5, 5), df(x, 5, 10), df(x, 5, 20), df(x, 5, 50)),
+  Parametros = rep(c("F(5, 5)", "F(5, 10)", "F(5, 20)", "F(5, 50)"), each = length(x))
+)
+
+p2 <- ggplot(df2, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando grados de libertad del denominador (b)",
+       subtitle = "Numerador fijo: a = 5",
+       x = "x", y = "f(x)") +
+  scale_color_manual(values = c("F(5, 5)" = "steelblue", "F(5, 10)" = "darkorange", 
+                                        "F(5, 20)" = "forestgreen", "F(5, 50)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Gráfica 3: Ambos parámetros pequeños vs grandes
+df3 <- data.frame(
+  x = rep(x, 4),
+  y = c(df(x, 2, 2), df(x, 5, 5), df(x, 10, 10), df(x, 30, 30)),
+  Parametros = rep(c("F(2, 2)", "F(5, 5)", "F(10, 10)", "F(30, 30)"), each = length(x))
+)
+
+p3 <- ggplot(df3, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando ambos grados de libertad simultáneamente",
+       subtitle = "a = b",
+       x = "x", y = "f(x)") +
+  scale_color_manual(values = c("F(2, 2)" = "steelblue", "F(5, 5)" = "darkorange", 
+                                        "F(10, 10)" = "forestgreen", "F(30, 30)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Gráfica 4: Comparación de simetría F(a,b) vs F(b,a)
+x2 <- seq(0, 4, length.out = 500)
+df4 <- data.frame(
+  x = rep(x2, 2),
+  y = c(df(x2, 5, 10), df(x2, 10, 5)),
+  Parametros = rep(c("F(5, 10)", "F(10, 5)"), each = length(x2))
+)
+
+p4 <- ggplot(df4, aes(x = x, y = y, color = Parametros, linetype = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Asimetría en el intercambio de parámetros",
+       subtitle = "F(a, b) ≠ F(b, a)",
+       x = "x", y = "f(x)") +
+  scale_color_manual(values = c("F(5, 10)" = "steelblue", "F(10, 5)" = "darkorange")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Combinar gráficas
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+**Observaciones sobre las gráficas.**
+
+1.  **Efecto del parámetro** $a$ (grados de libertad del numerador): A medida que $a$ aumenta, la distribución se vuelve más simétrica y se desplaza hacia la derecha, acercándose a una forma más "normal".
+
+2.  **Efecto del parámetro** $b$ (grados de libertad del denominador): Al aumentar $b$, la distribución se concentra más alrededor de su media y reduce su variabilidad. Además, la cola derecha se vuelve menos pesada.
+
+3.  **Convergencia a la normalidad**: Cuando ambos grados de libertad son grandes, la distribución F se aproxima a una distribución normal.
+
+4.  **Asimetría**: La última gráfica demuestra claramente que $F(a, b) \neq F(b, a)$, evidenciando la no conmutatividad de los parámetros.
+
+## Propiedades de la CDF
+
+La función de distribución acumulada (CDF) de una variable aleatoria $X \sim F(a, b)$ está definida como:
+
+\begin{equation}
+F(x)= P(X\leq x) = 
+\int_0^x\frac{\Gamma\left(\frac{a+b}{2}\right)}{\Gamma\left(\frac{a}{2}\right)\Gamma\left(\frac{b}{2}\right)} \left(\frac{a}{b}\right)^{a/2} u^{a/2-1} \left(1 + \frac{a}{b}u\right)^{-(a+b)/2} du
+\end{equation}
+
+para $x>0$.
+
+**1. Dominio y Rango**
+
+- **Dominio**: $x \in (0, \infty)$\
+- **Imagen**: $F(x) \in [0, 1]$
+
+**2. Monotonía**
+
+La función $F(x)$ es **estrictamente creciente** en $(0, \infty)$ y satisface:
+
+- $\lim_{x \to 0^+} F(x) = 0$
+- $\lim_{x \to \infty} F(x) = 1$
+
+**3. Continuidad**
+
+La CDF es **continua** en todo su dominio, lo cual es característico de las distribuciones absolutamente continuas.
+
+**4. Relación con la distribución complementaria**
+
+Para una variable $X \sim F(a, b)$, se cumple la siguiente propiedad de simetría:
+
+$$P(X \leq x) = P\left(\frac{1}{Y} \geq \frac{1}{x}\right) = P\left(Y \geq \frac{1}{x}\right) = 1 - F_Y\left(\frac{1}{x}\right)$$
+
+donde $Y \sim F(b, a)$.
+
+Esta relación es útil para calcular valores críticos y cuantiles en tablas estadísticas.
+
+**5. Cuantiles**
+
+El cuantil de orden $p$ (o percentil $100p$), denotado $x_p$, satisface:
+
+$$F(x_p) = p \quad \Leftrightarrow \quad P(X \leq x_p) = p$$
+
+**Propiedad importante**: Si $x_p$ es el cuantil de orden $p$ de $F(a, b)$, entonces:
+
+$$\frac{1}{x_p} = x_{1-p}^{(b,a)}$$
+
+donde $x_{1-p}^{(b,a)}$ es el cuantil de orden $1-p$ de $F(b, a)$.
+
+**Visualización de la CDF**
+
+A continuación se presentan las gráficas de la función de distribución acumulada para diferentes combinaciones de grados de libertad:
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+
+# Definir rango de x
+x <- seq(0, 5, length.out = 500)
+
+# Gráfica 1: Variando el primer parámetro (a), fijo b = 10
+df1 <- data.frame(
+  x = rep(x, 4),
+  y = c(pf(x, 2, 10), pf(x, 5, 10), pf(x, 10, 10), pf(x, 20, 10)),
+  Parametros = rep(c("F(2, 10)", "F(5, 10)", "F(10, 10)", "F(20, 10)"), each = length(x))
+)
+
+p1 <- ggplot(df1, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando grados de libertad del numerador (a)",
+       subtitle = "Denominador fijo: b = 10",
+       x = "x", y = "F(x)") +
+  scale_color_manual(values = c("F(2, 10)" = "steelblue", "F(5, 10)" = "darkorange", 
+                                        "F(10, 10)" = "forestgreen", "F(20, 10)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = c(0.25, 0.5, 0.75), linetype = "dashed", alpha = 0.3)
+
+# Gráfica 2: Variando el segundo parámetro (b), fijo a = 5
+df2 <- data.frame(
+  x = rep(x, 4),
+  y = c(pf(x, 5, 5), pf(x, 5, 10), pf(x, 5, 20), pf(x, 5, 50)),
+  Parametros = rep(c("F(5, 5)", "F(5, 10)", "F(5, 20)", "F(5, 50)"), each = length(x))
+)
+
+p2 <- ggplot(df2, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando grados de libertad del denominador (b)",
+       subtitle = "Numerador fijo: a = 5",
+       x = "x", y = "F(x)") +
+  scale_color_manual(values = c("F(5, 5)" = "steelblue", "F(5, 10)" = "darkorange", 
+                                        "F(5, 20)" = "forestgreen", "F(5, 50)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = c(0.25, 0.5, 0.75), linetype = "dashed", alpha = 0.3)
+
+# Gráfica 3: Ambos parámetros pequeños vs grandes
+df3 <- data.frame(
+  x = rep(x, 4),
+  y = c(pf(x, 2, 2), pf(x, 5, 5), pf(x, 10, 10), pf(x, 30, 30)),
+  Parametros = rep(c("F(2, 2)", "F(5, 5)", "F(10, 10)", "F(30, 30)"), each = length(x))
+)
+
+p3 <- ggplot(df3, aes(x = x, y = y, color = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Variando ambos grados de libertad simultáneamente",
+       subtitle = "a = b",
+       x = "x", y = "F(x)") +
+  scale_color_manual(values = c("F(2, 2)" = "steelblue", "F(5, 5)" = "darkorange", 
+                                        "F(10, 10)" = "forestgreen", "F(30, 30)" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", alpha = 0.5)
+
+# Gráfica 4: Comparación F(a,b) vs F(b,a)
+x2 <- seq(0, 4, length.out = 500)
+df4 <- data.frame(
+  x = rep(x2, 2),
+  y = c(pf(x2, 5, 10), pf(x2, 10, 5)),
+  Parametros = rep(c("F(5, 10)", "F(10, 5)"), each = length(x2))
+)
+
+p4 <- ggplot(df4, aes(x = x, y = y, color = Parametros, linetype = Parametros)) +
+  geom_line(linewidth = 1) +
+  labs(title = "Comparación de CDF con parámetros intercambiados",
+       subtitle = "F(a, b) vs F(b, a)",
+       x = "x", y = "F(x)") +
+  scale_color_manual(values = c("F(5, 10)" = "steelblue", "F(10, 5)" = "darkorange")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", alpha = 0.5)
+
+# Combinar gráficas
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+**Observaciones sobre las gráficas**
+
+1.  **Convergencia a 1**: Todas las CDF convergen a 1 a medida que $x$ aumenta, aunque la velocidad de convergencia depende de los parámetros.
+
+2.  **Efecto del parámetro** $a$: Al aumentar $a$, la CDF se desplaza hacia la derecha, indicando que se necesitan valores más grandes de $x$ para alcanzar las mismas probabilidades acumuladas.
+
+3.  **Efecto del parámetro** $b$: Al aumentar $b$, la CDF se vuelve más pronunciada (crece más rápidamente), lo que refleja una menor variabilidad en la distribución.
+
+4.  **Asimetría en parámetros**: Las gráficas de $F(a,b)$ y $F(b,a)$ son claramente diferentes, reforzando la no conmutatividad de los parámetros.
+
+5.  **Cuartiles**: Las líneas discontinuas horizontales en las primeras tres gráficas muestran la ubicación aproximada de los cuartiles (25%, 50% y 75%), permitiendo visualizar cómo cambian con los parámetros.
+
+## Medidas descriptivas
+
+**Media**
+
+La media (valor esperado) de una variable aleatoria $X \sim F(a, b)$ existe cuando $b > 2$ y está dada por:
+
+\begin{equation}
+E(X) = \frac{b}{b-2} \quad \text{para } b > 2
+\end{equation}
+
+**Observaciones importantes**:
+
+- Cuando $b \leq 2$, la media **no existe** (es infinita).
+- La media solo depende del parámetro $b$ (grados de libertad del denominador).
+- A medida que $b$ aumenta, la media se aproxima a 1: $\lim_{b \to \infty} E(X) = 1$.
+
+**Moda**
+
+Como se señaló previamente, la moda de la distribución F existe cuando $a > 2$ y está dada por:
+
+$$\text{Moda} = \frac{b(a-2)}{a(b+2)}$$
+
+**Observaciones importantes**:
+
+- Cuando $a \leq 2$, la distribución es estrictamente decreciente y la moda se encuentra en $x = 0^+$.
+- La moda depende de ambos parámetros $a$ y $b$.
+- Para valores grandes de ambos parámetros, la moda se aproxima a 1.
+
+**Visualización de media y moda**
+
+```{r}
+#| fig-width: 12
+#| fig-height: 10
+
+
+# Función para calcular la moda
+calcular_moda <- function(a, b) {
+  if (a > 2) {
+    return(b * (a - 2) / (a * (b + 2)))
+  } else {
+    return(0)
+  }
+}
+
+# Función para calcular la media
+calcular_media <- function(b) {
+  if (b > 2) {
+    return(b / (b - 2))
+  } else {
+    return(NA)
+  }
+}
+
+# Gráfica 1: PDF con media y moda marcadas (a = 5, variando b)
+x <- seq(0, 5, length.out = 500)
+
+# Para b = 5
+p1_data <- data.frame(x = x, y = df(x, 5, 5))
+media1 <- calcular_media(5)
+moda1 <- calcular_moda(5, 5)
+
+p1 <- ggplot(p1_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media1, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda1, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media1 + 0.3, y = max(p1_data$y) * 0.9, 
+           label = paste0("Media = ", round(media1, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda1 - 0.3, y = max(p1_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda1, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(5, 5)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+# Para b = 10
+p2_data <- data.frame(x = x, y = df(x, 5, 10))
+media2 <- calcular_media(10)
+moda2 <- calcular_moda(5, 10)
+
+p2 <- ggplot(p2_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media2, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda2, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media2 + 0.2, y = max(p2_data$y) * 0.9, 
+           label = paste0("Media = ", round(media2, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda2 - 0.2, y = max(p2_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda2, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(5, 10)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+# Para b = 20
+p3_data <- data.frame(x = x, y = df(x, 5, 20))
+media3 <- calcular_media(20)
+moda3 <- calcular_moda(5, 20)
+
+p3 <- ggplot(p3_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media3, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda3, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media3 + 0.15, y = max(p3_data$y) * 0.9, 
+           label = paste0("Media = ", round(media3, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda3 - 0.15, y = max(p3_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda3, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(5, 20)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+# Gráfica 4: Variando a con b = 10
+p4_data <- data.frame(x = x, y = df(x, 3, 10))
+media4 <- calcular_media(10)
+moda4 <- calcular_moda(3, 10)
+
+p4 <- ggplot(p4_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media4, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda4, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media4 + 0.2, y = max(p4_data$y) * 0.9, 
+           label = paste0("Media = ", round(media4, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda4 - 0.2, y = max(p4_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda4, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(3, 10)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+# Gráfica 5: Variando a con b = 10
+p5_data <- data.frame(x = x, y = df(x, 10, 10))
+media5 <- calcular_media(10)
+moda5 <- calcular_moda(10, 10)
+
+p5 <- ggplot(p5_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media5, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda5, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media5 + 0.15, y = max(p5_data$y) * 0.9, 
+           label = paste0("Media = ", round(media5, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda5 - 0.15, y = max(p5_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda5, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(10, 10)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+# Gráfica 6: Variando a con b = 10
+p6_data <- data.frame(x = x, y = df(x, 20, 10))
+media6 <- calcular_media(10)
+moda6 <- calcular_moda(20, 10)
+
+p6 <- ggplot(p6_data, aes(x = x, y = y)) +
+  geom_line(linewidth = 1, color = "steelblue") +
+  geom_vline(xintercept = media6, linetype = "dashed", color = "red", linewidth = 0.8) +
+  geom_vline(xintercept = moda6, linetype = "dashed", color = "darkgreen", linewidth = 0.8) +
+  annotate("text", x = media6 + 0.15, y = max(p6_data$y) * 0.9, 
+           label = paste0("Media = ", round(media6, 3)), color = "red", angle = 90) +
+  annotate("text", x = moda6 - 0.15, y = max(p6_data$y) * 0.9, 
+           label = paste0("Moda = ", round(moda6, 3)), color = "darkgreen", angle = 90) +
+  labs(title = "F(20, 10)", x = "x", y = "f(x)") +
+  theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 3,
+             top = "Media (roja) y Moda (verde) en diferentes distribuciones F")
+```
+
+**Observaciones**
+
+**Variando** $b$ (primera fila):
+
+- La **media** disminuye a medida que $b$ aumenta, acercándose a 1.
+- La **moda** también disminuye y se acerca a 1.
+- La diferencia entre media y moda disminuye a medida que $b$ aumenta.
+
+**Variando** $a$ (segunda fila):
+
+- La **media** permanece constante (solo depende de $b$).
+- La **moda** aumenta a medida que $a$ aumenta.
+- Para valores grandes de $a$, la moda se acerca a la media.
+
+### Varianza
+
+La varianza de una variable aleatoria $X \sim F(a, b)$ existe cuando $b > 4$ y está dada por:
+
+\begin{equation}
+\text{Var}(X) = \frac{2b^2(a+b-2)}{a(b-2)^2(b-4)} \quad \text{para } b > 4
+\end{equation}
+
+**Observaciones importantes**:
+
+- Cuando $b \leq 4$, la varianza **no existe** (es infinita).
+- La varianza depende de ambos parámetros $a$ y $b$.
+- Para $b$ fijo, la varianza disminuye a medida que $a$ aumenta.
+- Para $a$ fijo, la varianza disminuye rápidamente a medida que $b$ aumenta.
+
+**Mapa de calor de la varianza**
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+# Función para calcular la varianza
+calcular_varianza <- function(a, b) {
+  if (b > 4) {
+    return(2 * b^2 * (a + b - 2) / (a * (b - 2)^2 * (b - 4)))
+  } else {
+    return(NA)
+  }
+}
+
+# Crear grid de parámetros
+a_vals <- seq(1, 10, length.out = 100)
+b_vals <- seq(5, 10, length.out = 100)
+grid <- expand.grid(a = a_vals, b = b_vals)
+
+# Calcular varianza para cada combinación
+grid$varianza <- mapply(calcular_varianza, grid$a, grid$b)
+
+# Crear mapa de calor
+ggplot(grid) +
+  geom_tile(aes(x = a, y = b, fill = varianza)) +
+  scale_fill_viridis(option = "plasma", name = "Varianza", 
+                     trans = "log10",
+                     breaks = c(0.1, 0.5, 1, 2, 5, 10, 20)) +
+  labs(title = "Mapa de Calor de la Varianza de F(a, b)",
+       subtitle = "Escala logarítmica para mejor visualización",
+       x = "Grados de libertad del numerador (a)",
+       y = "Grados de libertad del denominador (b)") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 10)) +
+  geom_contour(aes(x = a, y = b, z = varianza), color = "white", alpha = 0.3, bins = 8)
+```
+
+**Observaciones del mapa de calor**
+
+1.  **Región de alta varianza**: Se observa en la esquina inferior izquierda (valores pequeños de $a$ y $b$ cercanos a 5), donde la varianza es muy grande.
+
+2.  **Disminución con** $b$: Para cualquier valor fijo de $a$, la varianza disminuye rápidamente a medida que $b$ aumenta. Esto se refleja en el cambio de color de claro (alta varianza) a oscuro (baja varianza) al subir en el eje vertical.
+
+3.  **Disminución con** $a$: Para cualquier valor fijo de $b$, la varianza también disminuye a medida que $a$ aumenta, aunque de manera más gradual que con $b$.
+
+4.  **Convergencia**: Para valores grandes de ambos parámetros (esquina superior derecha), la varianza se acerca a cero, indicando que la distribución se concentra más alrededor de su media.
+
+5.  **Las líneas de contorno** (en blanco) muestran curvas de nivel de varianza constante, permitiendo identificar combinaciones de $(a, b)$ que producen la misma variabilidad.
+
+## Ejercicios propuestos
+
+::: {#exr-fisher}
+Por medio de simulación numérica (es decir, generando muestras aleatorias de una distribución F con diferentes parámetros, mostrando el histograma de densidad de las muestras y comparándolo con la PDF teórica correspondiente), verifique las siguientes propiedades:
+
+a)  Si $X\sim t(n)$ entonces $X^2 \sim F(1,n)$.
+
+b)  Si $X \sim F(a,b)$ entonces $\frac{1}{X} \sim F(b,a)$.
+
+c)  Si $X \sim \chi^2(a)$ y $Y \sim \chi^2(b)$ son independientes, entonces $\frac{X/a}{Y/b} \sim F(a,b)$.
+:::

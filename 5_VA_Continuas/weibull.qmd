@@ -1,0 +1,31 @@
+---
+title: "Distribución Weibull"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library(plotly)
+library(scales)
+library(viridis)
+
+```
+
+Desarrollar como en la demás distribuciones, incluyendo la función de probabilidad y la función de distribución, gráficas considerando el cambio en los parámetros de la distribución. Características de la distribución (media, varianza, moda, cv). Un ejemplo con valores simulados y la verificación del teorema central del límite. Tomar como referencia principal el libro Introducción a la Probabilidad de Luis Rincón, páginas 278-281.

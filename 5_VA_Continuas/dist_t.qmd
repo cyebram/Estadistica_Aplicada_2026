@@ -1,0 +1,583 @@
+---
+title: "Distribución t de Student."
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library(plotly)
+library(scales)
+library(viridis)
+
+```
+
+
+La **distribución t de Student** es una de las distribuciones de probabilidad más importantes en estadística inferencial, especialmente cuando trabajamos con muestras pequeñas o cuando la varianza poblacional es desconocida.
+
+**Usos más comunes:**
+
+**1. Pruebas de hipótesis:**
+
+- Pruebas t para una muestra (comparar una media muestral con un valor conocido)
+- Pruebas t para dos muestras independientes (comparar medias de dos grupos)
+- Pruebas t para muestras pareadas (comparar medias antes-después)
+
+**2. Intervalos de confianza:**
+
+- Construcción de intervalos de confianza para la media cuando $\sigma$ es desconocida
+- Intervalos de confianza para la diferencia de medias
+
+**3. Análisis de regresión:**
+
+- Pruebas de significancia de coeficientes de regresión
+- Intervalos de confianza para parámetros del modelo
+
+**4. Situaciones donde se prefiere sobre la normal:**
+
+- Muestras pequeñas ($n < 30$)
+- Varianza poblacional desconocida
+- Cuando se necesita mayor robustez ante valores extremos
+
+La distribución t fue desarrollada por William Sealy Gosset en 1908, quien publicó bajo el seudónimo "Student" mientras trabajaba en la cervecería Guinness.
+
+::: {#def-tstudent}
+
+Decimos que la variable aleatoria continua $X$ tiene una **distribución t de Student** con $n > 0$ grados de libertad si su función de densidad está dada por la siguiente expresión:
+
+\begin{equation}
+f(x) = \frac{\Gamma\left(\frac{n+1}{2}\right)}{\sqrt{n\pi} \Gamma\left(\frac{n}{2}\right)} \left(1 + \frac{x^2}{n}\right)^{-(n+1)/2}, \quad -\infty < x < \infty
+\end{equation}
+
+En tal caso se escribe $X \sim t(n)$, donde $n$ es un número real positivo que representa los **grados de libertad** de la distribución.
+
+:::
+
+## Propiedades de la función de densidad
+
+**Características principales:**
+
+1. **Dominio**: $(-\infty, \infty)$
+2. **Simetría**: La función es simétrica respecto a $x = 0$
+3. **Forma**: Campana, similar a la distribución normal estándar
+4. **Colas pesadas**: Comparada con $N(0,1)$, tiene colas más gruesas
+5. **Convergencia**: Cuando $n \to \infty$, la distribución $t(n)$ converge a $N(0,1)$
+
+**Parámetro:**
+
+- **$n$**: Grados de libertad (parámetro de forma)
+  * Debe ser un número real positivo
+  * Determina qué tan "pesadas" son las colas de la distribución
+  * A mayor $n$, más se aproxima a la normal estándar
+
+
+### Efecto de los grados de libertad 
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 6
+
+x <- seq(-4, 4, length.out = 1000)
+
+df_data <- data.frame(
+  x = rep(x, 5),
+  density = c(
+    dt(x, df = 1),    
+    dt(x, df = 2),    
+    dt(x, df = 5),    
+    dt(x, df = 30),   
+    dnorm(x, 0, 1)    
+  ),
+  distribution = factor(rep(c("t(1)", "t(2)", "t(5)", "t(30)", "N(0,1)"), 
+                           each = length(x)),
+                       levels = c("t(1)", "t(2)", "t(5)", "t(30)", "N(0,1)"))
+)
+
+# Crear gráfica
+densidad_t <- ggplot(df_data, aes(x = x, y = density, color = distribution)) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = c("red", "blue", "green", "orange", "black")) +
+  labs(
+    title = "Comparación de Distribuciones t de Student con N(0,1)",
+    x = "x",
+    y = "Densidad f(x)",
+    color = "Distribución"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  ) +
+  xlim(-4, 4) +
+  ylim(0, 0.45)
+
+ggplotly(densidad_t)
+```
+
+
+
+
+**Con pocos grados de libertad:**
+
+- Las colas son más pesadas que la normal estándar
+- La distribución es más "aplastada" en el centro
+- Mayor probabilidad en los valores extremos
+- $t(1)$ corresponde a la distribución de Cauchy
+
+**Con muchos grados de libertad:**
+
+- Se aproxima cada vez más a $N(0,1)$
+- Las colas se vuelven menos pesadas
+- La forma se vuelve más *puntiaguda* en el centro
+
+**Convergencia:**
+
+- Para $n \geq 30$, la diferencia con $N(0,1)$ es prácticamente imperceptible
+- Cuando $n \to \infty$: $t(n) \to N(0,1)$
+
+
+## Función de distribución acumulada (CDF) 
+
+::: {#def-cdf_tstudent}
+
+La **función de distribución acumulada** de la distribución t de Student con $n$ grados de libertad se define como:
+
+$$F(x) = P(X \leq x) = \int_{-\infty}^{x} f(t) dt$$
+
+donde $f(t)$ es la función de densidad:
+
+$$f(t) = \frac{\Gamma\left(\frac{n+1}{2}\right)}{\sqrt{n\pi} \Gamma\left(\frac{n}{2}\right)} \left(1 + \frac{t^2}{n}\right)^{-(n+1)/2}$$
+
+Por lo tanto:
+
+$$F(x) = \int_{-\infty}^{x} \frac{\Gamma\left(\frac{n+1}{2}\right)}{\sqrt{n\pi} \Gamma\left(\frac{n}{2}\right)} \left(1 + \frac{t^2}{n}\right)^{-(n+1)/2} dt$$
+
+:::
+
+---
+
+### Propiedades de la CDF
+
+**Características principales:**
+
+1. **Dominio**: $(-\infty, \infty)$
+2. **Imagen**: $[0, 1]$
+3. **Monótona creciente**: $F'(x) = f(x) \geq 0$
+4. **Simetría**: $F(-x) = 1 - F(x)$ (debido a la simetría de la PDF)
+5. **Límites**:
+   - $\lim_{x \to -\infty} F(x) = 0$
+   - $\lim_{x \to \infty} F(x) = 1$
+   - $F(0) = 0.5$ (por simetría)
+
+
+### Comparación de CDF con diferentes grados de libertad
+
+```{r}
+#| echo: true
+
+# Crear secuencia de valores x
+x <- seq(-4, 4, length.out = 1000)
+
+# Crear data frame con diferentes grados de libertad para CDF
+df_cdf <- data.frame(
+  x = rep(x, 5),
+  cdf = c(
+    pt(x, df = 1),    # t con 1 grado de libertad
+    pt(x, df = 2),    # t con 2 grados de libertad
+    pt(x, df = 5),    # t con 5 grados de libertad
+    pt(x, df = 30),   # t con 30 grados de libertad
+    pnorm(x, 0, 1)    # Normal estándar
+  ),
+  distribution = factor(rep(c("t(1)", "t(2)", "t(5)", "t(30)", "N(0,1)"), 
+                           each = length(x)),
+                       levels = c("t(1)", "t(2)", "t(5)", "t(30)", "N(0,1)"))
+)
+
+# Gráfica de CDF
+p1 <- ggplot(df_cdf, aes(x = x, y = cdf, color = distribution, linetype = distribution)) +
+  geom_line(linewidth = 1.2) +
+  scale_color_manual(values = c("red", "blue", "green", "orange", "black")) +
+  scale_linetype_manual(values = c("solid", "solid", "solid", "solid", "solid")) +
+  labs(
+    title = "Función de Distribución Acumulada (CDF)",
+    subtitle = "Comparación de distribuciones t de Student con N(0,1)",
+    x = "x",
+    y = "F(x) = P(X ≤ x)",
+    color = "Distribución",
+    linetype = "Distribución"
+  ) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", alpha = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dotted", alpha = 0.7) +
+  xlim(-4, 4) +
+  ylim(0, 1) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+
+ggplotly(p1)
+```
+
+
+### Comparación conjunta: PDF y CDF
+
+```{r}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 6
+
+
+# Datos para PDF
+df_pdf <- data.frame(
+  x = rep(x, 4),
+  pdf = c(
+    dt(x, df = 1),
+    dt(x, df = 5),
+    dt(x, df = 30),
+    dnorm(x, 0, 1)
+  ),
+  distribution = factor(rep(c("t(1)", "t(5)", "t(30)", "N(0,1)"), each = length(x)))
+)
+
+# Datos para CDF
+df_cdf_comp <- data.frame(
+  x = rep(x, 4),
+  cdf = c(
+    pt(x, df = 1),
+    pt(x, df = 5),
+    pt(x, df = 30),
+    pnorm(x, 0, 1)
+  ),
+  distribution = factor(rep(c("t(1)", "t(5)", "t(30)", "N(0,1)"), each = length(x)))
+)
+
+# Gráfica PDF
+p_pdf <- ggplot(df_pdf, aes(x = x, y = pdf, color = distribution)) +
+  geom_line(linewidth = 1.2) +
+  scale_color_manual(values = c("red", "green", "orange", "black")) +
+  labs(
+    title = "Función de Densidad (PDF)",
+    x = "x",
+    y = "f(x)",
+    color = "Distribución"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  xlim(-4, 4)
+
+# Gráfica CDF
+p_cdf <- ggplot(df_cdf_comp, aes(x = x, y = cdf, color = distribution)) +
+  geom_line(linewidth = 1.2) +
+  scale_color_manual(values = c("red", "green", "orange", "black")) +
+  labs(
+    title = "Función de Distribución (CDF)",
+    x = "x",
+    y = "F(x)",
+    color = "Distribución"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", alpha = 0.7) +
+  xlim(-4, 4) +
+  ylim(0, 1)
+
+# Combinar gráficas
+grid.arrange(p_pdf, p_cdf, ncol = 2, 
+             top = "Comparación PDF vs CDF - Distribución t de Student")
+```
+
+
+## Cálculo de probabilidades 
+
+**Tipos de probabilidades**
+
+Para una variable aleatoria $X \sim t(n)$, podemos calcular diferentes tipos de probabilidades:
+
+1. **Probabilidad acumulada**: $P(X \leq a)$
+2. **Probabilidad en un intervalo**: $P(a \leq X \leq b)$
+3. **Probabilidad en la cola derecha**: $P(X \geq a)$
+4. **Probabilidad en ambas colas**: $P(X \leq -a) + P(X \geq a)$
+
+**Ecuaciones para el cálculo**
+
+**Probabilidad acumulada:**
+$$P(X \leq a) = F(a) = \int_{-\infty}^{a} f(t) dt$$
+
+**Probabilidad en un intervalo:**
+$$P(a \leq X \leq b) = F(b) - F(a) = \int_{a}^{b} f(t) dt$$
+
+**Probabilidad en la cola derecha:**
+$$P(X \geq a) = 1 - F(a) = \int_{a}^{\infty} f(t) dt$$
+
+
+```{r}
+#| fig-width: 12
+#| fig-height: 10
+
+# Función para crear gráfica de área bajo la curva
+# df_val: grados de libertad, a_val: valor inferior, b_val: valor superior (si aplica)
+# prob_type: "left", "right", "interval", "two_tails"
+create_probability_plot <- function(df_val, a_val, b_val = NULL, prob_type, title_text) {
+  x <- seq(-4, 4, length.out = 1000)
+  y <- dt(x, df = df_val)
+  
+  # Crear data frame base
+  df_base <- data.frame(x = x, y = y)
+  
+  # Determinar área a sombrear según el tipo de probabilidad
+  if (prob_type == "left") {
+    x_area <- x[x <= a_val]
+    y_area <- dt(x_area, df = df_val)
+    prob_val <- pt(a_val, df = df_val)
+  } else if (prob_type == "right") {
+    x_area <- x[x >= a_val]
+    y_area <- dt(x_area, df = df_val)
+    prob_val <- 1 - pt(a_val, df = df_val)
+  } else if (prob_type == "interval" && !is.null(b_val)) {
+    x_area <- x[x >= a_val & x <= b_val]
+    y_area <- dt(x_area, df = df_val)
+    prob_val <- pt(b_val, df = df_val) - pt(a_val, df = df_val)
+  } else if (prob_type == "two_tails") {
+    x_area1 <- x[x <= -abs(a_val)]
+    y_area1 <- dt(x_area1, df = df_val)
+    x_area2 <- x[x >= abs(a_val)]
+    y_area2 <- dt(x_area2, df = df_val)
+    prob_val <- pt(-abs(a_val), df = df_val) + (1 - pt(abs(a_val), df = df_val))
+  }
+  
+  # Crear gráfica base
+  p <- ggplot(df_base, aes(x = x, y = y)) +
+    geom_line(color = "black", linewidth = 1) +
+    theme_minimal() +
+    labs(
+      title = paste(title_text, sprintf("(df = %d)", df_val)),
+      subtitle = sprintf("Probabilidad = %.4f", prob_val),
+      x = "x",
+      y = "f(x)"
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 10, color = "blue")
+    )
+  
+  # Agregar área sombreada según el tipo
+  if (prob_type == "left") {
+    p <- p + geom_area(data = data.frame(x = x_area, y = y_area), 
+                       aes(x = x, y = y), fill = "skyblue", alpha = 0.7) +
+      geom_vline(xintercept = a_val, color = "red", linetype = "dashed", linewidth = 1)
+  } else if (prob_type == "right") {
+    p <- p + geom_area(data = data.frame(x = x_area, y = y_area), 
+                       aes(x = x, y = y), fill = "lightcoral", alpha = 0.7) +
+      geom_vline(xintercept = a_val, color = "red", linetype = "dashed", linewidth = 1)
+  } else if (prob_type == "interval") {
+    p <- p + geom_area(data = data.frame(x = x_area, y = y_area), 
+                       aes(x = x, y = y), fill = "lightgreen", alpha = 0.7) +
+      geom_vline(xintercept = c(a_val, b_val), color = "red", linetype = "dashed", linewidth = 1)
+  } else if (prob_type == "two_tails") {
+    p <- p + geom_area(data = data.frame(x = x_area1, y = y_area1), 
+                       aes(x = x, y = y), fill = "orange", alpha = 0.7) +
+      geom_area(data = data.frame(x = x_area2, y = y_area2), 
+                aes(x = x, y = y), fill = "orange", alpha = 0.7) +
+      geom_vline(xintercept = c(-abs(a_val), abs(a_val)), color = "red", linetype = "dashed", linewidth = 1)
+  }
+  
+  return(p)
+}
+
+# Crear múltiples ejemplos de probabilidades
+p1 <- create_probability_plot(5, 1.5, prob_type = "left", 
+                             title_text = "P(X ≤ 1.5)")
+
+p2 <- create_probability_plot(5, 1.5, prob_type = "right", 
+                             title_text = "P(X ≥ 1.5)")
+
+p3 <- create_probability_plot(5, -1, 2, prob_type = "interval", 
+                             title_text = "P(-1 ≤ X ≤ 2)")
+
+p4 <- create_probability_plot(5, 2, prob_type = "two_tails", 
+                             title_text = "P(|X| ≥ 2)")
+
+# Combinar gráficas
+grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2,
+             top = "Ejemplos de Cálculo de Probabilidades - t(5)")
+```
+
+
+## Medidas Descriptivas
+
+Para una distribución $X \sim t(n)$:
+
+**Media (Esperanza)**
+
+\begin{equation}
+E(X) = \begin{cases}
+0 & \text{si } n > 1 \\
+\text{No existe} & \text{si } n \leq 1
+\end{cases}
+\end{equation}
+
+La media existe solo cuando $n > 1$ y siempre es igual a 0 debido a la simetría de la distribución.
+
+**Mediana**
+
+$$\text{Mediana} = 0$$
+
+Por simetría, la mediana siempre es 0, independientemente del valor de $n$.
+
+**Moda**
+
+$$\text{Moda} = 0$$
+
+El valor que maximiza la función de densidad es siempre 0, independientemente de $n$.
+
+**Varianza**
+
+\begin{equation}
+\text{Var}(X) = \begin{cases}
+\frac{n}{n-2} & \text{si } n > 2 \\
+\infty & \text{si } 1 < n \leq 2 \\
+\text{No existe} & \text{si } n \leq 1
+\end{cases}
+\end{equation}
+
+La varianza existe y es finita solo cuando $n > 2$. Para $1 < n \leq 2$, la varianza es infinita debido a las colas pesadas de la distribución.
+
+```{r}
+# Calcular varianza para diferentes grados de libertad
+n_values <- seq(3, 50, by = 0.1)  # Empezar en 3 para que la varianza exista
+variance_values <- n_values / (n_values - 2)
+
+# Crear data frame
+df_variance <- data.frame(
+  n = n_values,
+  variance = variance_values
+)
+
+# Gráfica de varianza
+p_var <- ggplot(df_variance, aes(x = n, y = variance)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = 1, color = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Varianza de la distribución t de Student",
+    subtitle = "Convergencia hacia σ² = 1 (Normal Estándar)",
+    x = "Grados de libertad (n)",
+    y = "Varianza"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  ) +
+  annotate("text", x = 40, y = 1.3, label = "Var(N(0,1)) = 1", 
+           color = "red", size = 5) +
+  ylim(1, 3.5)
+
+p_var
+```
+
+
+## Ejercicios propuestos
+
+::: {#exr-muestras_tstudent}
+
+Genera muestras aleatorias de tamaño 100, 300 y 1000 de una distribución t de Student con 5 grados de libertad. Para cada muestra:
+
+1. Calcula la media y varianza muestral; y compara con los valores teóricos.
+
+2. Para la muestra de mayor tamaño, realiza un histograma, superpone la función de densidad teórica de la variable aleatoria $t(5)$ y la función de densidad de una normal estándar.
+
+:::
+
+
+::: {#exr-relacion_normal_ji}
+
+::: {#prp-rel_normal_ji}
+
+Si $X\sim N(0,1)$ y $Y\sim \chi^2(n)$ son dos variables aleatorias independientes, entonces la variable aleatoria:
+
+$$T=\frac{X}{\sqrt{Y/n}}\sim t(n)$$
+
+
+:::
+
+---
+
+Genera una muestra aleatoria de de tamaño 1000 para $X\sim N(0,1)$ y $Y\sim \chi^2(10)$. Calcula la variable aleatoria $T$ y compara su histograma con la función de densidad teórica de $t(10)$.
+
+:::
+
+
+::: {#exr-n_normales}
+
+
+::: {#prp-n_normal}
+
+Sean $X_1,X_2,\ldots,X_n$ variables aleatorias independientes e idénticamente distribuidas como $N(\mu,\sigma^2)$. Entonces la variable aleatoria:
+
+$$T= \frac{\overline{X}-\mu}{S/\sqrt{n}}\sim t(n-1)$$
+
+en donde $\overline{X}=\frac{1}{n}\sum_{i=1}^n X_i$ y $S^2=\frac{1}{n-1}\sum_{i=1}^n (X_i-\overline{X})^2$.
+
+
+:::
+
+---
+
+Genera 1000 muestras aleatorias de tamaño 50 de una distribución normal estándar. Para cada muestra calcula la media muestral y la desviación estándar muestral. Luego calcula la variable aleatoria $T$ y compara su histograma con la función de densidad teórica de $t(49)$.
+
+
+:::

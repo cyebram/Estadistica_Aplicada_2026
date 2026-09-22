@@ -1,0 +1,1026 @@
+---
+title: "Distribución Exponencial"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| include: false
+#| label: setup
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(plotly)
+```
+
+La **distribución exponencial** es una de las distribuciones continuas más importantes en probabilidad y estadística, especialmente en el modelado de **tiempos de espera** y **procesos de fallo**. Su relevancia radica en su capacidad para modelar el tiempo que transcurre entre eventos que ocurren de manera aleatoria e independiente a una tasa constante.
+
+La distribución exponencial surge naturalmente del **proceso de Poisson**, si los eventos siguen un proceso de Poisson con tasa $\lambda$, entonces el tiempo entre eventos consecutivos sigue una distribución exponencial con el mismo parámetro $\lambda$.
+
+**Interpretación práctica**
+
+La distribución exponencial modela situaciones donde:
+
+- **Tiempo entre llegadas**: Clientes a un banco, llamadas telefónicas, visitantes a un sitio web
+- **Tiempo de vida**: Componentes electrónicos, vida útil de equipos
+- **Tiempo de servicio**: Duración de llamadas telefónicas, tiempo de atención al cliente
+- **Procesos de decaimiento**: Desintegración radiactiva, eliminación de medicamentos del cuerpo
+
+::: {#def-exponencial}
+Decimos que variable aleatoria continua $X$ tiene **distribución exponencial** con parámetro $\lambda > 0$ si tiene función de densidad de probabilidad:
+
+\begin{equation}
+f(x) = \begin{cases} 
+\lambda e^{-\lambda x} & \text{si } x \geq 0 \\
+0 & \text{si } x < 0
+\end{cases}
+\end{equation}
+
+A una variable aleatoria con distribución exponencial se le denota como $X \sim \text{exp}(\lambda)$, donde $\lambda$ es el **parámetro de tasa** (rate parameter).
+:::
+
+------------------------------------------------------------------------
+
+**Parámetro de la distribución**
+
+La distribución exponencial tiene **un solo parámetro**:
+
+- $\lambda$ (lambda): Parámetro de tasa o intensidad
+  - $\lambda > 0$ (debe ser positivo)
+  - Representa la tasa promedio de ocurrencia de eventos por unidad de tiempo
+  - **Mayor** $\lambda$: Eventos más frecuentes, tiempos de espera más cortos
+  - **Menor** $\lambda$: Eventos menos frecuentes, tiempos de espera más largos
+
+**Soporte y dominio**
+
+- **Soporte**: $[0, \infty)$, solo valores no negativos
+- **Dominio natural**: Tiempo, distancia, o cualquier magnitud no negativa
+- La distribución es **continua** en todo su soporte
+
+## Propiedades de la función de densidad
+
+1.  **Monótona decreciente**: La función siempre decrece desde su máximo en $x = 0$
+2.  **Asintótica**: Se aproxima a cero cuando $x \to \infty$
+3.  **Valor máximo**: $f(0) = \lambda$
+4.  **Forma**: Curva exponencial decreciente
+
+**Comportamiento de la PDF al variar** $\lambda$
+
+```{r}
+#| label: pdf-variacion-lambda
+
+# Definir valores de x y diferentes valores de lambda
+x_vals <- seq(0, 6, length.out = 1000)
+lambdas <- c(0.5, 1, 1.5, 2, 3)
+
+# Crear dataframe para ggplot
+df_pdf <- data.frame()
+for (lambda in lambdas) {
+  temp_df <- data.frame(
+    x = x_vals,
+    y = dexp(x_vals, lambda),
+    lambda = paste("λ =", lambda)
+  )
+  df_pdf <- rbind(df_pdf, temp_df)
+}
+
+# Gráfico de PDFs con diferentes λ
+pdf_graf <- ggplot(df_pdf, aes(x = x, y = y, color = lambda)) +
+  geom_line(linewidth = 1.2) +
+  labs(title = "Función de Densidad - Distribución Exponencial",
+       subtitle = "Efecto del parámetro λ en la forma de la distribución",
+       x = "x",
+       y = "f(x) = λe^(-λx)",
+       color = "Parámetro") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "right") +
+  scale_color_viridis_d() +
+  xlim(0, 6)
+
+
+ggplotly(pdf_graf)
+```
+
+## Propiedades de la función de distribución (CDF)
+
+**Definición y derivación**
+
+La función de distribución acumulativa (CDF) de la distribución exponencial se obtiene integrando la PDF:
+
+$$F(x) = P(X \leq x) = \int_{0}^{x} \lambda e^{-\lambda t} dt$$
+
+**Cálculo de la integral**
+
+$$F(x) = \lambda \int_{0}^{x} e^{-\lambda t} dt$$
+
+Usando la sustitución $u = -\lambda t$, $du = -\lambda dt$:
+
+\begin{equation}
+F(x) = \lambda \cdot \frac{1}{-\lambda} \int_{0}^{-\lambda x} e^{u} du = -\left[e^{-\lambda t}\right]_{0}^{x}
+\end{equation}
+\begin{equation}
+F(x) = -\left(e^{-\lambda x} - e^{0}\right) = -(e^{-\lambda x} - 1) = 1 - e^{-\lambda x},
+\end{equation}
+
+es decir:
+
+\begin{equation}
+F(x) = \begin{cases} 
+0 & \text{si } x < 0 \\
+1 - e^{-\lambda x} & \text{si } x \geq 0
+\end{cases}
+\end{equation}
+
+**Propiedades de la CDF**
+
+- **Monótona creciente**: $F'(x) = f(x) \geq 0$
+- **Continua**: No hay saltos en la función
+- **Límites**: $\lim_{x \to 0^+} F(x) = 0$ y $\lim_{x \to \infty} F(x) = 1$
+
+**Visualización de la CDF**
+
+```{r}
+#| label: cdf-variacion-lambda
+
+# Crear dataframe para CDFs
+df_cdf <- data.frame()
+for (lambda in lambdas) {
+  temp_df <- data.frame(
+    x = x_vals,
+    y = pexp(x_vals, lambda),
+    lambda = paste("λ =", lambda)
+  )
+  df_cdf <- rbind(df_cdf, temp_df)
+}
+
+# Gráfico de CDFs
+cdf_graf <- ggplot(df_cdf, aes(x = x, y = y, color = lambda)) +
+  geom_line(linewidth = 1.2) +
+  geom_hline(yintercept = c(0, 0.5, 1), linetype = "dashed", alpha = 0.5) +
+  labs(title = "Función de Distribución Acumulativa - Distribución Exponencial",
+       subtitle = "Efecto del parámetro λ en la CDF",
+       x = "x",
+       y = "F(x) = 1 - e^(-λx)",
+       color = "Parámetro") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "right") +
+  scale_color_viridis_d() +
+  xlim(0, 6) +
+  ylim(0, 1)
+
+
+ggplotly(cdf_graf)
+```
+
+## Cálculo de probabilidades
+
+Para calcular $P(a \leq X \leq b)$ con $0 \leq a < b$, tenemos:
+
+$$P(a \leq X \leq b) = F(b) - F(a) = (1 - e^{-\lambda b}) - (1 - e^{-\lambda a}) = e^{-\lambda a} - e^{-\lambda b}$$
+
+**Ejemplo de cálculo**
+
+Consideremos una variable aleatoria $X \sim \text{exp}(\lambda = 2)$. Queremos calcular $P(1 \leq X \leq 3)$.
+
+```{r ejemplos-probabilidades}
+# Parámetros para el ejemplo
+lambda_ej <- 2
+a_ej <- 1
+b_ej <- 3
+
+# Calcular probabilidades
+prob_menor_igual_b <- pexp(b_ej, lambda_ej)
+prob_menor_igual_a <- pexp(a_ej, lambda_ej)
+prob_intervalo <- prob_menor_igual_b - prob_menor_igual_a
+
+# Mostrar cálculos
+cat("P(X ≤ 3) =", round(prob_menor_igual_b, 4), "\n")
+cat("P(X ≤ 1) =", round(prob_menor_igual_a, 4), "\n")
+cat("P(1 ≤ X ≤ 3) =", round(prob_intervalo, 4), "\n")
+```
+
+**Visualización del área bajo la curva**
+
+```{r area-bajo-curva}
+# Crear gráfico mostrando el área bajo la curva
+x_area <- seq(0, 5, length.out = 1000)
+y_area <- dexp(x_area, lambda_ej)
+
+# Identificar puntos en el intervalo [1, 3]
+x_intervalo <- x_area[x_area >= a_ej & x_area <= b_ej]
+y_intervalo <- y_area[x_area >= a_ej & x_area <= b_ej]
+
+ggplot(data.frame(x = x_area, y = y_area), aes(x = x, y = y)) +
+  geom_line(linewidth = 1.5, color = "blue") +
+  geom_area(data = data.frame(x = x_intervalo, y = y_intervalo),
+            aes(x = x, y = y), fill = "red", alpha = 0.3) +
+  geom_vline(xintercept = c(a_ej, b_ej), linetype = "dashed", color = "red") +
+  annotate("text", x = 2, y = 0.5, 
+           label = paste("P(1 ≤ X ≤ 3) =", round(prob_intervalo, 3)),
+           size = 5, color = "red", fontface = "bold") +
+  labs(title = "Cálculo de probabilidades usando el área bajo la curva",
+       subtitle = "Distribución exponencial λ = 2",
+       x = "x", y = "f(x)") +
+  theme_minimal() +
+  xlim(0, 5)+
+  theme(
+    legend.title = element_text(size=13),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Cuantiles de la distribución
+
+**Función cuantil (inversa de la CDF)**
+
+Para encontrar el cuantil $x_p$ tal que $P(X \leq x_p) = p$:
+
+$$p = 1 - e^{-\lambda x_p}$$ $$e^{-\lambda x_p} = 1 - p$$ $$-\lambda x_p = \ln(1 - p)$$ $$x_p = -\frac{\ln(1 - p)}{\lambda}$$
+
+**Cuantiles importantes**
+
+Consideremos la distribución $X \sim \text{exp}(\lambda = 1.5)$ y calculemos algunos cuantiles importantes.
+
+```{r}
+#| label: cuantiles-importantes
+
+
+# Calcular cuantiles importantes
+lambda_cuant <- 1.5
+cuantiles_p <- c(0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
+
+cuantiles_valores <- qexp(cuantiles_p, lambda_cuant)
+
+# Crear tabla de cuantiles
+tabla_cuantiles <- data.frame(
+  Percentil = paste0(cuantiles_p * 100, "%"),
+  Probabilidad = cuantiles_p,
+  Cuantil = round(cuantiles_valores, 4),
+  `Interpretación` = c(
+    "Primer cuartil",
+    "Mediana",
+    "Tercer cuartil", 
+    "Percentil 90",
+    "Percentil 95",
+    "Percentil 99"
+  ),
+  check.names = FALSE
+)
+
+kable(tabla_cuantiles,
+      caption = paste("Cuantiles importantes para Exp(λ =", lambda_cuant, ")")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+**Visualización de cuantiles en la CDF**
+
+```{r cuantiles-visual}
+# Crear gráfico de CDF con cuantiles marcados
+x_cuant <- seq(0, 4, length.out = 1000)
+y_cuant <- pexp(x_cuant, lambda_cuant)
+
+# Puntos importantes
+mediana <- qexp(0.5, lambda_cuant)
+q1 <- qexp(0.25, lambda_cuant)
+q3 <- qexp(0.75, lambda_cuant)
+
+ggplot(data.frame(x = x_cuant, y = y_cuant), aes(x = x, y = y)) +
+  geom_line(linewidth = 1.5, color = "blue") +
+  geom_hline(yintercept = c(0.25, 0.5, 0.75), linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = c(q1, mediana, q3), linetype = "dashed", alpha = 0.7) +
+  annotate("point", x = q1, y = 0.25, color = "red", size = 3) +
+  annotate("point", x = mediana, y = 0.5, color = "red", size = 3) +
+  annotate("point", x = q3, y = 0.75, color = "red", size = 3) +
+  annotate("text", x = q1, y = 0.15, label = "Q1", size = 4, color = "red") +
+  annotate("text", x = mediana, y = 0.4, label = "Q2", size = 4, color = "red") +
+  annotate("text", x = q3, y = 0.65, label = "Q3", size = 4, color = "red") +
+  labs(title = "Cuantiles en la función de distribución",
+       subtitle = paste("Exp(λ =", lambda_cuant, ")"),
+       x = "x", y = "F(x)") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Medidas descriptivas
+
+### Medidas de tendencia central
+
+**Media (esperanza)**
+
+La media de la distribución exponencial se calcula como:
+
+$$E(X) = \int_{0}^{\infty} x \cdot \lambda e^{-\lambda x} dx$$
+
+Usando integración por partes con $u = x$ y $dv = \lambda e^{-\lambda x} dx$:
+
+$$E(X) = \left[-x e^{-\lambda x}\right]_{0}^{\infty} + \int_{0}^{\infty} e^{-\lambda x} dx$$
+
+El primer término se evalúa como cero, y el segundo:
+
+$$E(X) = \int_{0}^{\infty} e^{-\lambda x} dx = \left[-\frac{1}{\lambda} e^{-\lambda x}\right]_{0}^{\infty} = \frac{1}{\lambda},$$
+
+es decir:
+
+$$\mu = E(X) = \frac{1}{\lambda}$$
+
+**Mediana**
+
+La mediana $m$ satisface $P(X \leq m) = 0.5$,
+
+$$F(m) = 1 - e^{-\lambda m} = 0.5$$ $$e^{-\lambda m} = 0.5$$ $$-\lambda m = \log(0.5) = -\log(2)$$ $$m = \frac{\log(2)}{\lambda}$$
+
+**Relación media-mediana**
+
+$$\frac{\text{Mediana}}{\text{Media}} = \frac{\log(2)/\lambda}{1/\lambda} = \log(2) \approx 0.693$$
+
+La mediana siempre es aproximadamente el **69.3%** de la media.
+
+Consideremos la distribución $X \sim \text{exp}(\lambda = 1.5)$, en este caso la media es $\mu = \frac{1}{1.5} \approx 0.6667$ y la mediana es $m = \frac{\log(2)}{1.5} \approx 0.4621$. Luego, se verifica que $\frac{m}{\mu} \approx 0.693$.
+
+```{r}
+#| label:  medidas-tendencia-central
+
+lambda_ejemplo <- 1.5
+
+# Calcular medidas
+media_ej <- 1 / lambda_ejemplo
+mediana_ej <- log(2) / lambda_ejemplo
+
+# Crear gráfico comparativo
+x_vals <- seq(0, 4, length.out = 1000)
+y_vals <- dexp(x_vals, lambda_ejemplo)
+
+ggplot(data.frame(x = x_vals, y = y_vals), aes(x = x, y = y)) +
+  geom_line(linewidth = 1.5, color = "blue") +
+  geom_vline(xintercept = mediana_ej, color = "olivedrab", linewidth = 1.2, linetype = "dashed") +
+  geom_vline(xintercept = media_ej, color = "orange2", linewidth = 1.2, linetype = "dotted") +
+  annotate("text", x = mediana_ej + 0.05, y = 0.8, 
+           label = paste("Mediana =", round(mediana_ej, 3)), color = "olivedrab", size = 4, angle = 90, hjust = 0) +
+  annotate("text", x = media_ej + 0.05, y = 0.6, 
+           label = paste("Media =", round(media_ej, 3)), color = "orange2", size = 4, angle = 90, hjust = 0) +
+  labs(title = "Medidas de tendencia central - distribución exponencial",
+       subtitle = paste("λ =", lambda_ejemplo),
+       x = "x", y = "f(x)") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+
+```
+
+### Medidas de dispersión
+
+**Varianza**
+
+Para calcular la varianza, necesitamos $E(X^2)$:
+
+$$E(X^2) = \int_{0}^{\infty} x^2 \cdot \lambda e^{-\lambda x} dx$$
+
+Usando integración por partes dos veces:
+
+$$E(X^2) = \frac{2}{\lambda^2}$$
+
+Por lo tanto:
+
+$$\text{Var}(X) = E[X^2] - (E[X])^2 = \frac{2}{\lambda^2} - \left(\frac{1}{\lambda}\right)^2 = \frac{2}{\lambda^2} - \frac{1}{\lambda^2} = \frac{1}{\lambda^2},$$
+
+es decir:
+
+$$\sigma^2 = \text{Var}(X) = \frac{1}{\lambda^2}$$
+
+**Desviación estándar**
+
+$$\sigma = \sqrt{\text{Var}(X)} = \sqrt{\frac{1}{\lambda^2}} = \frac{1}{\lambda}$$
+
+**Observación**: Para la distribución exponencial, $\sigma = \mu$. La desviación estándar es igual a la media.
+
+### Medida de forma
+
+**Coeficiente de variación**
+
+El coeficiente de variación mide la dispersión relativa:
+
+$$CV = \frac{\sigma}{\mu} = \frac{1/\lambda}{1/\lambda} = 1$$
+
+Esta es una característica única y distintiva de la distribución exponencial. Sin importar el valor de $\lambda$, el coeficiente de variación siempre es exactamente 1.
+
+## Simulación y comparación con parámetros teóricos
+
+Consideremos una distribución $\text{exp}(\lambda = 2)$ y evaluemos cómo los estadísticos muestrales convergen a los valores teóricos:
+
+```{r simulacion-convergencia}
+# Parámetros de la distribución
+lambda_sim <- 2
+
+# Parámetros teóricos
+media_teorica <- 1 / lambda_sim
+varianza_teorica <- 1 / lambda_sim^2
+desv_std_teorica <- 1 / lambda_sim
+mediana_teorica <- log(2) / lambda_sim
+
+# Tamaños de muestra a evaluar
+size_muestras <- c(50, 100, 500, 1000, 5000, 10000)
+
+# Función para calcular estadísticos muestrales
+calcular_estadisticos <- function(n, lambda) {
+  muestra <- rexp(n, rate = lambda)
+  
+  return(data.frame(
+    n = n,
+    media_muestral = mean(muestra),
+    varianza_muestral = var(muestra),
+    desv_std_muestral = sd(muestra),
+    mediana_muestral = median(muestra),
+    min_muestral = min(muestra),
+    max_muestral = max(muestra)
+  ))
+}
+
+# Realizar simulaciones
+resultados_sim <- do.call(rbind, lapply(size_muestras, calcular_estadisticos, lambda = lambda_sim))
+
+# Agregar valores teóricos
+resultados_sim$media_teorica <- media_teorica
+resultados_sim$varianza_teorica <- varianza_teorica
+resultados_sim$desv_std_teorica <- desv_std_teorica
+resultados_sim$mediana_teorica <- mediana_teorica
+
+# Calcular errores relativos
+resultados_sim$error_media <- abs(resultados_sim$media_muestral - media_teorica) / media_teorica * 100
+resultados_sim$error_varianza <- abs(resultados_sim$varianza_muestral - varianza_teorica) / varianza_teorica * 100
+
+# Mostrar tabla de resultados
+kable(resultados_sim[, c("n", "media_muestral", "media_teorica", "error_media", 
+                        "varianza_muestral", "varianza_teorica", "error_varianza")],
+      caption = "Convergencia de estadísticos muestrales hacia valores teóricos",
+      digits = 4,
+      col.names = c("n", "Media Muestral", "Media Teórica", "Error %", 
+                    "Varianza Muestral", "Varianza Teórica", "Error %")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  add_header_above(c(" " = 1, "Media" = 3, "Varianza" = 3))
+```
+
+<br>
+
+**Visualización de la convergencia**
+
+```{r convergencia-visual}
+#| warning: false
+
+# Generar una secuencia larga para observar convergencia
+n_total <- 15000
+muestra_larga <- rexp(n_total, rate = lambda_sim)
+
+# Calcular estadísticos acumulados
+indices <- 1:n_total
+medias_acumuladas <- cumsum(muestra_larga) / indices
+varianzas_acumuladas <- sapply(indices, function(i) var(muestra_larga[1:i]))
+
+# Crear dataframe para gráficos
+df_convergencia <- data.frame(
+  n = indices,
+  media_acumulada = medias_acumuladas,
+  varianza_acumulada = varianzas_acumuladas
+)
+
+# Gráfico de convergencia de la media
+p1 <- ggplot(df_convergencia, aes(x = n)) +
+  geom_line(aes(y = media_acumulada), color = "blue", alpha = 0.8) +
+  geom_hline(yintercept = media_teorica, color = "red", linetype = "dashed", linewidth = 1) +
+  labs(title = "Convergencia de la media muestral",
+       x = "Tamaño de muestra (n)",
+       y = "Media acumulada",
+       caption = "Línea roja: Media teórica = 0.5") +
+  theme_minimal() +
+  ylim(0.4, 0.6)
+
+# Gráfico de convergencia de la varianza
+p2 <- ggplot(df_convergencia, aes(x = n)) +
+  geom_line(aes(y = varianza_acumulada), color = "green", alpha = 0.8) +
+  geom_hline(yintercept = varianza_teorica, color = "red", linetype = "dashed", linewidth = 1) +
+  labs(title = "Convergencia de la varianza muestral",
+       x = "Tamaño de muestra (n)",
+       y = "Varianza acumulada",
+       caption = "Línea roja: Varianza teórica = 0.25") +
+  theme_minimal() +
+  ylim(0.15, 0.35)
+
+# Mostrar ambos gráficos
+grid.arrange(p1, p2, ncol = 2,
+             top = "Ley de los grandes números - distribución exponencial (λ = 2)")
+```
+
+**Comparación histograma vs densidad teórica**
+
+```{r histograma-densidad}
+#| warning: false
+
+# Generar muestra grande para histograma
+muestra_grande <- rexp(8000, rate = lambda_sim)
+
+# Crear histograma con densidad teórica superpuesta
+ggplot(data.frame(x = muestra_grande), aes(x = x)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 fill = "lightblue", color = "black", alpha = 0.7, boundary = 0, binwidth=0.1) +
+  stat_function(fun = dexp, args = list(rate = lambda_sim), 
+                color = "red", linewidth = 1.5) +
+  labs(title = "Histograma de muestra vs densidad teórica",
+       subtitle = paste("8000 observaciones de exp(λ =", lambda_sim, ")"),
+       x = "Valores",
+       y = "Densidad",
+       caption = "Curva roja: Densidad teórica") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15,  hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+  xlim(0, 4)
+```
+
+## Ejemplos prácticos
+
+::: {#exm-tiempo_clientes}
+### Tiempo entre llegadas de clientes
+
+Un banco ha observado que los clientes llegan siguiendo un proceso de Poisson con una tasa promedio de 3 clientes por minuto. El tiempo entre llegadas consecutivas sigue una distribución exponencial.
+
+```{r ejemplo-banco}
+#| warning: false
+
+# Parámetros del problema
+tasa_llegadas <- 3  # clientes por minuto
+lambda_banco <- tasa_llegadas
+
+# Simular tiempos entre llegadas para un día de trabajo (8 horas = 480 minutos)
+tiempo_total <- 480  # minutos
+tiempos_entre_llegadas <- rexp(1000, rate = lambda_banco)
+
+# Filtrar solo los que ocurren dentro del tiempo de trabajo
+tiempos_validos <- tiempos_entre_llegadas[cumsum(tiempos_entre_llegadas) <= tiempo_total]
+n_clientes <- length(tiempos_validos)
+
+# Calcular estadísticos
+tiempo_promedio <- mean(tiempos_validos)
+tiempo_mediano <- median(tiempos_validos)
+
+# Probabilidades de interés
+prob_menos_30_seg <- pexp(0.5, rate = lambda_banco)  # 30 segundos = 0.5 minutos
+prob_mas_1_min <- 1 - pexp(1, rate = lambda_banco)
+prob_entre_30_90_seg <- pexp(1.5, rate = lambda_banco) - pexp(0.5, rate = lambda_banco)
+
+# Resultados del análisis
+cat("=== ANÁLISIS DEL BANCO ===\n")
+cat("Tasa de llegadas:", lambda_banco, "clientes/minuto\n")
+cat("Tiempo promedio entre llegadas (teórico):", round(1/lambda_banco, 3), "minutos\n")
+cat("Tiempo promedio entre llegadas (simulado):", round(tiempo_promedio, 3), "minutos\n")
+cat("Tiempo mediano entre llegadas:", round(tiempo_mediano, 3), "minutos\n")
+cat("Clientes atendidos en 8 horas:", n_clientes, "\n\n")
+cat("PROBABILIDADES:\n")
+cat("P(tiempo < 30 seg):", round(prob_menos_30_seg, 3), "\n")
+cat("P(tiempo > 1 min):", round(prob_mas_1_min, 3), "\n")
+cat("P(30 seg < tiempo < 90 seg):", round(prob_entre_30_90_seg, 3), "\n")
+
+# Visualización
+ggplot(data.frame(tiempo = tiempos_validos), aes(x = tiempo)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 fill = "lightgreen", color = "black", alpha = 0.7, boundary =0, binwidth =0.1) +
+  stat_function(fun = dexp, args = list(rate = lambda_banco), 
+                color = "red", linewidth = 1.2) +
+  geom_vline(xintercept = 1/lambda_banco, color = "blue", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = c(0.5, 1, 1.5), color = "orange", linetype = "dotted", linewidth = 1) +
+  labs(title = "Distribución de tiempos entre llegadas de clientes",
+       x = "Tiempo entre llegadas (minutos)",
+       y = "Densidad",
+       caption = "Línea roja: Densidad teórica | Línea azul: Media teórica | Líneas naranjas: 30s, 60s, 90s") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )+
+  xlim(0, 2)
+```
+:::
+
+------------------------------------------------------------------------
+
+::: {#exm-vida_util_leds}
+### Vida Útil de Componentes Electrónicos
+
+Una empresa de electrónicos ha determinado que la vida útil de sus LEDs sigue una distribución exponencial con una vida útil promedio de 2000 horas.
+
+```{r ejemplo-leds}
+# Parámetros del problema
+vida_promedio <- 2000  # horas
+lambda_leds <- 1 / vida_promedio
+
+# Simular vida útil de 5000 LEDs
+n_leds <- 5000
+vidas_utiles <- rexp(n_leds, rate = lambda_leds)
+
+# Análisis de garantía - ¿Qué porcentaje falla antes de 1000 horas?
+garantia <- 1000  # horas
+fallos_garantia <- sum(vidas_utiles < garantia)
+porcentaje_fallos <- (fallos_garantia / n_leds) * 100
+
+# Probabilidad teórica de fallo antes de la garantía
+prob_fallo_teorica <- pexp(garantia, rate = lambda_leds) * 100
+
+# Vida útil para diferentes percentiles
+percentiles <- c(10, 25, 50, 75, 90)
+vidas_percentiles <- qexp(percentiles/100, rate = lambda_leds)
+
+# Análisis de mantenimiento - Propiedad sin memoria
+# Si un LED ha funcionado 1500 horas, ¿cuál es la probabilidad de que dure otras 500 horas?
+horas_funcionando <- 1500
+horas_adicionales <- 500
+prob_sin_memoria <- 1 - pexp(horas_adicionales, rate = lambda_leds)
+
+cat("=== ANÁLISIS DE LEDs ===\n")
+cat("Vida útil promedio:", vida_promedio, "horas\n")
+cat("Vida útil promedio simulada:", round(mean(vidas_utiles), 1), "horas\n")
+cat("Mediana de vida útil:", round(median(vidas_utiles), 1), "horas\n\n")
+
+cat("ANÁLISIS DE GARANTÍA (1000 horas):\n")
+cat("Fallos durante garantía (simulado):", fallos_garantia, "de", n_leds, "LEDs\n")
+cat("Porcentaje de fallos (simulado):", round(porcentaje_fallos, 2), "%\n")
+cat("Porcentaje de fallos (teórico):", round(prob_fallo_teorica, 2), "%\n\n")
+
+cat("PERCENTILES DE VIDA ÚTIL:\n")
+for(i in seq_along(percentiles)) {
+  cat(paste0(percentiles[i], "% de los LEDs fallan antes de: "), 
+      round(vidas_percentiles[i], 1), "horas\n")
+}
+
+cat("\nPROPIEDAD SIN MEMORIA:\n")
+cat("P(durar otras 500h | ya funcionó 1500h):", round(prob_sin_memoria, 3), "\n")
+cat("P(durar 500h desde el inicio):", round(1 - pexp(500, rate = lambda_leds), 3), "\n")
+
+# Tabla de percentiles
+tabla_percentiles <- data.frame(
+  Percentil = paste0(percentiles, "%"),
+  `Vida Útil (horas)` = round(vidas_percentiles, 1),
+  `Años (aprox.)` = round(vidas_percentiles / (24*365), 2),
+  check.names = FALSE
+)
+
+kable(tabla_percentiles,
+      caption = "Percentiles de vida útil de LEDs") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+# Gráfico de supervivencia
+ggplot(data.frame(vida = vidas_utiles), aes(x = vida)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, 
+                 fill = "lightcoral", color = "black", alpha = 0.7) +
+  stat_function(fun = dexp, args = list(rate = lambda_leds), 
+                color = "red", linewidth = 1.5) +
+  geom_vline(xintercept = garantia, color = "blue", linetype = "dashed", linewidth = 1.2) +
+  geom_vline(xintercept = vida_promedio, color = "green", linetype = "dashed", linewidth = 1.2) +
+  annotate("text", x = garantia + 200, y = max(density(vidas_utiles)$y) * 0.8,
+           label = "Garantía\n1000h", color = "blue", size = 4) +
+  annotate("text", x = vida_promedio + 200, y = max(density(vidas_utiles)$y) * 0.6,
+           label = "Vida promedio\n2000h", color = "green", size = 4) +
+  labs(title = "Distribución de vida útil de LEDs",
+       x = "Vida útil (horas)",
+       y = "Densidad") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )+
+  xlim(0, 10000)
+```
+:::
+
+::: {#exm-tiempo_servidor}
+### Tiempo de Respuesta de un Servidor Web
+
+Un servidor web procesa solicitudes con un tiempo de respuesta que sigue una distribución exponencial con un tiempo promedio de 200 milisegundos.
+
+```{r ejemplo-servidor}
+# Parámetros del problema
+tiempo_respuesta_promedio <- 0.2  # 200 ms = 0.2 segundos
+lambda_servidor <- 1 / tiempo_respuesta_promedio
+
+# Simular tiempos de respuesta durante una hora de alto tráfico
+n_solicitudes <- 10000
+tiempos_respuesta <- rexp(n_solicitudes, rate = lambda_servidor)
+
+# Convertir a milisegundos para mejor interpretación
+tiempos_ms <- tiempos_respuesta * 1000
+
+# Análisis de rendimiento
+tiempo_promedio_ms <- mean(tiempos_ms)
+tiempo_mediano_ms <- median(tiempos_ms)
+
+# Métricas de calidad de servicio (SLA)
+sla_100ms <- sum(tiempos_ms <= 100) / n_solicitudes * 100
+sla_500ms <- sum(tiempos_ms <= 500) / n_solicitudes * 100
+sla_1000ms <- sum(tiempos_ms <= 1000) / n_solicitudes * 100
+
+# Probabilidades teóricas
+prob_100ms <- pexp(0.1, rate = lambda_servidor) * 100
+prob_500ms <- pexp(0.5, rate = lambda_servidor) * 100
+prob_1000ms <- pexp(1.0, rate = lambda_servidor) * 100
+
+# Percentiles de tiempo de respuesta
+percentiles_resp <- c(50, 90, 95, 99)
+tiempos_percentiles_ms <- qexp(percentiles_resp/100, rate = lambda_servidor) * 1000
+
+cat("=== ANÁLISIS DE SERVIDOR WEB ===\n")
+cat("Tiempo de respuesta promedio (teórico):", tiempo_respuesta_promedio * 1000, "ms\n")
+cat("Tiempo de respuesta promedio (simulado):", round(tiempo_promedio_ms, 1), "ms\n")
+cat("Tiempo de respuesta mediano:", round(tiempo_mediano_ms, 1), "ms\n\n")
+
+cat("CUMPLIMIENTO DE SLA:\n")
+cat("≤ 100ms - Simulado:", round(sla_100ms, 1), "% | Teórico:", round(prob_100ms, 1), "%\n")
+cat("≤ 500ms - Simulado:", round(sla_500ms, 1), "% | Teórico:", round(prob_500ms, 1), "%\n")
+cat("≤ 1000ms - Simulado:", round(sla_1000ms, 1), "% | Teórico:", round(prob_1000ms, 1), "%\n\n")
+
+cat("PERCENTILES DE TIEMPO DE RESPUESTA:\n")
+for(i in seq_along(percentiles_resp)) {
+  cat(paste0("P", percentiles_resp[i], ": "), round(tiempos_percentiles_ms[i], 1), "ms\n")
+}
+
+# Análisis de cola larga
+tiempos_lentos <- sum(tiempos_ms > 1000)
+porcentaje_lentos <- (tiempos_lentos / n_solicitudes) * 100
+
+cat("\nANÁLISIS DE COLA LARGA:\n")
+cat("Solicitudes > 1 segundo:", tiempos_lentos, "de", n_solicitudes, 
+    "(", round(porcentaje_lentos, 2), "%)\n")
+
+# Visualización con diferentes escalas
+p1 <- ggplot(data.frame(tiempo = tiempos_ms), aes(x = tiempo)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, 
+                 fill = "lightsteelblue", color = "black", alpha = 0.7) +
+  stat_function(fun = function(x) dexp(x/1000, rate = lambda_servidor)/1000, 
+                color = "red", linewidth = 1.5) +
+  geom_vline(xintercept = c(100, 500, 1000), color = "orange", 
+             linetype = "dashed", linewidth = 1) +
+  labs(title = "Distribución de tiempos de respuesta",
+       x = "Tiempo de respuesta (ms)",
+       y = "Densidad") +
+  theme_minimal() +
+  xlim(0, 1500)
+
+# Gráfico de supervivencia (probabilidad de exceder cierto tiempo)
+tiempos_eval <- seq(0, 2000, by = 10)
+prob_supervivencia <- 1 - pexp(tiempos_eval/1000, rate = lambda_servidor)
+
+p2 <- ggplot(data.frame(tiempo = tiempos_eval, prob = prob_supervivencia), 
+             aes(x = tiempo, y = prob)) +
+  geom_line(color = "blue", linewidth = 1.5) +
+  geom_hline(yintercept = c(0.1, 0.05, 0.01), linetype = "dashed", alpha = 0.7) +
+  labs(title = "Función de supervivencia",
+       x = "Tiempo de respuesta (ms)",
+       y = "P(Tiempo > t)") +
+  theme_minimal()
+
+grid.arrange(p1, p2, ncol = 2,
+             top = "Análisis de rendimiento del servidor web")
+```
+:::
+
+## Verificación del teorema central del límite por simulación
+
+El teorema central del límite establece que las medias muestrales de cualquier distribución (con media y varianza finitas) se aproximan a una distribución normal cuando el tamaño de muestra es suficientemente grande.
+
+```{r tcl-setup}
+# Parámetros de la distribución exponencial base
+lambda_tcl <- 1.5
+media_poblacional <- 1 / lambda_tcl
+varianza_poblacional <- 1 / lambda_tcl^2
+
+# Diferentes tamaños de muestra
+size_muestra <- c(5, 10, 20, 30, 50, 100)
+num_muestras <- 2000  # Número de medias muestrales a generar por tamaño
+
+# Función para generar medias muestrales
+generar_medias_exp <- function(n, num_sim, lambda) {
+  medias <- replicate(num_sim, mean(rexp(n, rate = lambda)))
+  return(medias)
+}
+
+# Generar medias para cada tamaño de muestra
+resultados_tcl <- list()
+for (i in seq_along(size_muestra)) {
+  n <- size_muestra[i]
+  medias <- generar_medias_exp(n, num_muestras, lambda_tcl)
+  
+  # Calcular estadísticos de las medias
+  media_de_medias <- mean(medias)
+  varianza_de_medias <- var(medias)
+  
+  resultados_tcl[[i]] <- data.frame(
+    medias = medias,
+    n = n,
+    media_teorica_medias = media_poblacional,
+    varianza_teorica_medias = varianza_poblacional / n,
+    desv_std_teorica_medias = sqrt(varianza_poblacional / n),
+    media_observada_medias = media_de_medias,
+    varianza_observada_medias = varianza_de_medias
+  )
+}
+
+# Combinar resultados
+df_tcl <- do.call(rbind, resultados_tcl)
+df_tcl$n_factor <- factor(paste("n =", df_tcl$n), 
+                         levels = paste("n =", size_muestra))
+```
+
+**Visualización de la normalización progresiva**
+
+```{r tcl-histogramas}
+# Crear datos para las curvas normales teóricas
+df_normal_teorica <- data.frame()
+x_range <- seq(media_poblacional - 4*sqrt(varianza_poblacional/5), media_poblacional + 4*sqrt(varianza_poblacional/5), length.out = 200)
+
+for (n in size_muestra) {
+  df_temp <- data.frame(
+    x = x_range,
+    y = dnorm(x_range, mean = media_poblacional, sd = sqrt(varianza_poblacional/n)),
+    n_factor = paste("n =", n)
+  )
+  df_normal_teorica <- rbind(df_normal_teorica, df_temp)
+}
+
+df_normal_teorica$n_factor <- factor(df_normal_teorica$n_factor, 
+                                         levels = levels(df_tcl$n_factor))
+
+
+
+# Crear histogramas para cada tamaño de muestra
+ggplot(df_tcl, aes(x = medias)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, 
+                 fill = "lightblue", color = "black", alpha = 0.7) +
+  geom_vline(aes(xintercept = media_teorica_medias), 
+             color = "red", linetype = "dashed", linewidth = 1) +
+  # Superponer curva normal teórica
+  geom_line(data = df_normal_teorica, aes(x = x, y = y), 
+            color = "red", linewidth = 1, alpha = 0.65) +
+  facet_wrap(~n_factor, scales = "free_y", ncol = 3) +
+  labs(title = "Teorema central del límite - Distribución exponencial",
+       subtitle = paste("Distribución de medias muestrales para exp(λ =", lambda_tcl, ")"),
+       x = "Media muestral",
+       y = "Densidad",
+       caption = "Línea roja: Media teórica | Curva roja: Normal teórica") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+```{r tcl-varianza}
+# Calcular estadísticos resumidos por tamaño de muestra
+estadisticos_tcl <- df_tcl %>%
+  group_by(n) %>%
+  summarise(
+    media_observada = mean(medias),
+    varianza_observada = var(medias),
+    desv_std_observada = sd(medias),
+    varianza_teorica = first(varianza_teorica_medias),
+    desv_std_teorica = first(desv_std_teorica_medias),
+    error_varianza = abs(var(medias) - first(varianza_teorica_medias)),
+    .groups = 'drop'
+  )
+
+# Tabla comparativa
+kable(estadisticos_tcl,
+      caption = "Convergencia de la varianza de las medias muestrales",
+      digits = 4,
+      col.names = c("n", "Media Obs.", "Var. Obs.", "DE Obs.", 
+                    "Var. Teórica", "DE Teórica", "Error Var.")) |> 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) |> 
+  add_header_above(c(" " = 1, "Observado" = 3, "Teórico" = 2, "Error" = 1))
+
+# Gráfico de disminución de varianza
+ggplot(estadisticos_tcl, aes(x = n)) +
+  geom_point(aes(y = varianza_observada, color = "Observada"), size = 3) +
+  geom_line(aes(y = varianza_observada, color = "Observada"), linewidth = 1.2) +
+  geom_point(aes(y = varianza_teorica, color = "Teórica"), size = 3) +
+  geom_line(aes(y = varianza_teorica, color = "Teórica"), linewidth = 1.2) +
+  scale_color_manual(values = c("Observada" = "blue", "Teórica" = "red")) +
+  labs(title = "Disminución de la varianza de las medias muestrales",
+       subtitle = "Var(X̄) = σ²/n",
+       x = "Tamaño de muestra (n)",
+       y = "Varianza de las medias muestrales",
+       color = "Tipo") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size=13, face="bold"),
+    legend.text = element_text(size=13),
+    legend.position = "top",
+    plot.title = element_text(size=15, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=13, hjust = 0.5),
+    axis.text.x=element_text(size=12),
+    axis.text.y=element_text(size=12),
+    axis.title.x = element_text(face="bold", size=13),
+    axis.title.y = element_text(face="bold", size=13)
+    # panel.grid.major.y = element_line(color = "#ECF0F1", linewidth = 0.5,
+    #   linetype = "dashed"),
+    # panel.grid.minor.y = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # panel.background = element_rect(fill = "#FAFAFA", color = NA),
+    # plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Ejercicios propuestos
+
+::: {#exr-simulacion_exponencial}
+Genera una simulación con tamaños de muestra de 10, 50, 100, 500 y 1000 observaciones de una distribución exponencial con $\lambda = 0.8$. Para cada tamaño de muestra:
+
+1.  Calcula la media, varianza y mediana muestral.
+2.  Compara estos estadísticos con los valores teóricos.
+3.  Grafica la distribución de las muestras junto con la densidad teórica.
+
+
+:::

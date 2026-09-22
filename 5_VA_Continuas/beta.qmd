@@ -1,0 +1,1207 @@
+---
+title: "Distribución Beta"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(plotly)
+library(viridis)
+library(RColorBrewer)
+library(kableExtra)
+library(knitr)
+```
+
+La distribución beta es una de las distribuciones continuas más versátiles y útiles en estadística, especialmente en el contexto de la estadística bayesiana. Su flexibilidad para modelar una amplia variedad de formas la convierte en una herramienta fundamental para describir fenómenos que toman valores en el intervalo $[0,1]$.
+
+## Función beta
+
+::: {#def-funcion_beta}
+La **función beta** es una función especial definida como la siguiente integral:
+
+$$B(a,b) = \int_0^1 x^{a-1}(1-x)^{b-1} dx$$
+
+para números reales $a > 0$ y $b > 0$.
+
+Esta función está estrechamente relacionada con la función gamma, mediante la identidad:
+
+$$B(a,b) = \frac{\Gamma(a)\Gamma(b)}{\Gamma(a+b)}$$
+
+donde $\Gamma(\cdot)$ denota la función gamma.
+:::
+
+------------------------------------------------------------------------
+
+### Propiedades principales
+
+La función beta posee varias propiedades importantes:
+
+**Simetría** $$B(a,b) = B(b,a)$$
+
+**Relación con factoriales**
+
+Para números enteros positivos $m$ y $n$: $$B(m,n) = \frac{(m-1)!(n-1)!}{(m+n-1)!}$$
+
+**Relación recursiva** $$B(a,b) = \frac{a-1}{a+b-1} \cdot B(a-1,b)$$
+
+**Casos especiales**
+
+- $B(1,1) = 1$
+- $B(a,1) = \frac{1}{a}$
+- $B(1,b) = \frac{1}{b}$
+- $B\left(\frac{1}{2}, \frac{1}{2}\right) = \pi$
+
+**Visualización de la función beta en** $\mathbb{R}^3$
+
+```{r}
+#| echo: true
+#| warning: false
+#| message: false
+#| fig-height: 8
+
+# Crear grid de valores para los parámetros a y b
+a_vals <- seq(0.1, 5, length.out = 50)
+b_vals <- seq(0.1, 5, length.out = 50)
+
+# Crear una matriz para almacenar los valores de la función beta
+beta_matrix <- outer(a_vals, b_vals, function(a, b) beta(a, b))
+
+# Limitar los valores para mejor visualización 
+beta_matrix[beta_matrix > 10] <- 10
+
+# Crear el gráfico 3D 
+plot_3d <- plot_ly(
+  x = ~a_vals, 
+  y = ~b_vals, 
+  z = ~beta_matrix,
+  type = "surface",
+  colorscale = "Viridis",
+  colorbar = list(title = "B(a,b)")
+) |> 
+  layout(
+    title = list(
+      text = "Función Beta B(a,b) en 3D",
+      font = list(size = 16)
+    ),
+    scene = list(
+      xaxis = list(title = "Parámetro a"),
+      yaxis = list(title = "Parámetro b"), 
+      zaxis = list(title = "B(a,b)"),
+      camera = list(
+        eye = list(x = 1.5, y = 1.5, z = 1.5)
+      )
+    ),
+    margin = list(l = 0, r = 0, b = 0, t = 50)
+  )
+
+plot_3d
+```
+
+<br>
+
+De la gráfica tridimensional podemos observar varios aspectos importantes:
+
+**Simetría**: La función es simétrica respecto a la línea $a=b$, confirmando la propiedad $B(a,b)=B(b,a)$.
+
+**Comportamiento en los bordes**: La función tiende a valores muy grandes cuando $a$ o $b$ se acercan a cero, lo cual es consistente con las propiedades $B(a,1)= \frac{1}{a}$ y $B(1,b)= \frac{1}{b}$.
+
+**Valle central**: Existe una región donde la función toma valores relativamente pequeños, especialmente cuando ambos parámetros son grandes.
+
+**Crecimiento**: La función crece rápidamente cuando uno de los parámetros es pequeño mientras el otro permanece fijo.
+
+## Definición de la distribución beta
+
+::: {#def-distribucion_beta}
+Decimos que la variable aleatoria continua $X$ tiene una **distribución beta** con parámetros $a > 0$ y $b > 0$, y escribimos $X \sim \text{beta}(a,b)$, cuando su función de densidad de probabilidad es:
+
+\begin{equation}
+f(x) = \begin{cases}
+\frac{1}{B(a,b)} x^{a-1}(1-x)^{b-1} & \text{si } 0 < x < 1 \\
+0 & \text{en otro caso}
+\end{cases}
+\end{equation}
+
+donde $B(a,b)$ es la función beta que actúa como constante normalizadora.
+:::
+
+------------------------------------------------------------------------
+
+**Parámetros de la distribución.**
+
+Los parámetros $a$ y $b$ se conocen como parámetros de forma (shape parameters) y determinan la forma de la distribución.
+
+### Casos especiales
+
+**Distribución uniforme.**
+
+Cuando $a = b = 1$, la distribución beta se reduce a la distribución uniforme en $(0,1)$:
+
+\begin{equation}
+X \sim \text{Beta}(1,1) \equiv \text{Uniforme}(0,1)
+\end{equation} 
+
+**Distribución arco coseno**
+
+Cuando $a = b = \frac{1}{2}$, obtenemos la distribución arco coseno:
+
+\begin{equation}
+X \sim \text{Beta}\left(\frac{1}{2}, \frac{1}{2}\right)
+\end{equation}
+
+## Propiedades fundamentales de la PDF
+
+**1. Normalización**
+
+La constante $\frac{1}{B(a,b)}$ garantiza que la integral de la función de densidad de probabilidad sea igual a 1:
+
+\begin{equation}
+\int_0^1 f(x) \, dx = \int_0^1 \frac{1}{B(a,b)} x^{a-1}(1-x)^{b-1} \, dx = 1
+\end{equation}
+
+**2. Continuidad**
+
+La función es continua en el intervalo $(0,1)$ para todos los valores positivos de $a$ y $b$.
+
+**3. Comportamiento en los extremos**
+
+El comportamiento de la función de densidad en los extremos del intervalo depende de los valores de los parámetros:
+
+- **En** $x = 0$:
+
+  - Si $a > 1$: $f(0) = 0$
+  - Si $a = 1$: $f(0) = \frac{b}{B(1,b)}$
+  - Si $a < 1$: $\lim_{x \to 0^+} f(x) = +\infty$
+
+- **En** $x = 1$:
+
+  - Si $b > 1$: $f(1) = 0$
+  - Si $b = 1$: $f(1) = \frac{a}{B(a,1)}$
+  - Si $b < 1$: $\lim_{x \to 1^-} f(x) = +\infty$
+
+**4. Unimodalidad y multimodalidad**
+
+- **Unimodal**: Cuando $a > 1$ y $b > 1$
+- **Forma de U**: Cuando $a < 1$ y $b < 1$
+- **Monótona decreciente**: Cuando $a < 1$ y $b \geq 1$
+- **Monótona creciente**: Cuando $a \geq 1$ y $b < 1$
+- **Uniforme**: Cuando $a = b = 1$
+
+------------------------------------------------------------------------
+
+### Gráficas básicas por categorías
+
+```{r}
+#| echo: false
+
+# Preparar datos para todas las categorías
+x <- seq(0.001, 0.999, length.out = 1000)
+
+# Definir parámetros representativos para cada forma
+params_formas <- list(
+  "Uniforme" = list(c(1, 1)),
+  "Unimodal" = list(c(2, 2), c(3, 3), c(5, 5), c(2, 5), c(5, 2)),
+  "Forma de U" = list(c(0.5, 0.5), c(0.3, 0.3), c(0.7, 0.7)),
+  "Monótona decreciente" = list(c(0.5, 1), c(0.5, 2), c(0.3, 1.5)),
+  "Monótona creciente" = list(c(1, 0.5), c(2, 0.5), c(1.5, 0.3))
+)
+```
+
+::: panel-tabset
+#### Uniforme
+
+```{r}
+#| warning: false
+# Distribución Uniforme
+df_uniforme <- data.frame()
+for (param in params_formas[["Uniforme"]]) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_uniforme <- rbind(df_uniforme, df_temp)
+}
+
+ggplot(df_uniforme, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.5) +
+  labs(
+    title = "Distribución uniforme",
+    subtitle = "Cuando a = b = 1, la distribución beta se reduce a la uniforme en (0,1)",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 14),
+    legend.position = "bottom",
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_color_viridis_d(option = "viridis") +
+  ylim(0, 1.5)
+```
+
+La distribución uniforme es un caso especial donde todos los valores en el intervalo (0,1) tienen la misma probabilidad.
+
+#### Unimodal
+
+```{r}
+#| warning: false
+
+# Distribuciones Unimodales
+df_unimodal <- data.frame()
+for (param in params_formas[["Unimodal"]]) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_unimodal <- rbind(df_unimodal, df_temp)
+}
+
+graf_unimodal <- ggplot(df_unimodal, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Distribuciones unimodales",
+    subtitle = "Cuando a > 1 y b > 1, la distribución tiene una única moda",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 14),
+    legend.position = "bottom",
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_color_viridis_d(option = "plasma") +
+  guides(color = guide_legend(nrow = 2))
+
+ggplotly(graf_unimodal)
+```
+
+Las distribuciones unimodales muestran diferentes grados de asimetría según los valores relativos de $a>1$ y $b>1$.
+
+#### Forma de U
+
+```{r}
+#| warning: false
+
+# Distribuciones en Forma de U
+df_u <- data.frame()
+for (param in params_formas[["Forma de U"]]) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_u <- rbind(df_u, df_temp)
+}
+
+ggplot(df_u, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Distribuciones en forma de U",
+    subtitle = "Cuando a < 1 y b < 1, la densidad tiende a infinito en ambos extremos",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  ylim(0, 7.5) +
+  annotate("text", x = 0.5, y = 5, 
+           label = "Densidad truncada en y=7.5\npara mejor visualización", 
+           size = 3.5, color = "gray40", hjust = 0.5)+
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 14),
+    legend.position = "bottom",
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12)
+  )
+```
+
+Estas distribuciones concentran la probabilidad en los extremos del intervalo, creando una forma característica de U.
+
+#### Monótona decreciente
+
+```{r}
+#| warning: false
+
+# Distribuciones Monótonas Decrecientes
+df_dec <- data.frame()
+for (param in params_formas[["Monótona decreciente"]]) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_dec <- rbind(df_dec, df_temp)
+}
+
+ggplot(df_dec, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Distribuciones monótonas decrecientes",
+    subtitle = "Cuando a < 1 y b ≥ 1, la densidad decrece monótonamente",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  scale_color_brewer(palette = "Set1") +
+  ylim(0, 8) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  ) 
+```
+
+Estas distribuciones favorecen valores cercanos a 0, con probabilidad decreciente hacia 1.
+
+#### Monótona creciente
+
+```{r}
+#| warning: false
+
+# Distribuciones Monótonas Crecientes
+df_crec <- data.frame()
+for (param in params_formas[["Monótona creciente"]]) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_crec <- rbind(df_crec, df_temp)
+}
+
+ggplot(df_crec, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Distribuciones monótonas crecientes",
+    subtitle = "Cuando a ≥ 1 y b < 1, la densidad crece monótonamente",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  scale_color_brewer(palette = "Accent") +
+  ylim(0, 7.5) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  ) 
+```
+
+Estas distribuciones favorecen valores cercanos a 1, con probabilidad creciente desde 0.
+:::
+
+### Efectos específicos de los parámetros
+
+**Efecto del parámetro** $a$ (manteniendo $b$ fijo)
+
+A medida que $a$ aumenta, la distribución se desplaza hacia la derecha.
+
+```{r}
+#| warning: false
+
+
+# Efecto de variar 'a' manteniendo 'b' constante
+b_fijo <- 2
+a_values <- c(0.5, 1, 1.5, 2, 3, 5)
+
+df_efecto_a <- data.frame()
+for (a in a_values) {
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b_fijo),
+    parametros = paste0("a=", a, ", b=", b_fijo)
+  )
+  df_efecto_a <- rbind(df_efecto_a, df_temp)
+}
+
+p_efecto_a <- ggplot(df_efecto_a, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = paste("Efecto del parámetro 'a' (b =", b_fijo, "fijo)"),
+    subtitle = "A medida que 'a' aumenta, la distribución se desplaza hacia la derecha",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  scale_color_viridis_d(option = "viridis")
+
+ggplotly(p_efecto_a)
+```
+
+**Efecto del parámetro** $b$ (manteniendo $a$ fijo)
+
+A medida que $b$ aumenta, la distribución se desplaza hacia la izquierda
+
+```{r}
+
+# Efecto de variar 'b' manteniendo 'a' constante
+a_fijo <- 2
+b_values <- c(0.5, 1, 1.5, 2, 3, 5)
+
+df_efecto_b <- data.frame()
+for (b in b_values) {
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a_fijo, b),
+    parametros = paste0("a=", a_fijo, ", b=", b)
+  )
+  df_efecto_b <- rbind(df_efecto_b, df_temp)
+}
+
+p_efecto_b <- ggplot(df_efecto_b, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = paste("Efecto del parámetro 'b' (a =", a_fijo, "fijo)"),
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  scale_color_brewer(palette = "Dark2")
+
+ggplotly(p_efecto_b)
+```
+
+### Propiedades analíticas de la PDF
+
+**Derivadas y puntos críticos**
+
+La derivada de la PDF beta es:
+
+$$f'(x) = \frac{1}{B(a,b)} x^{a-2}(1-x)^{b-2}[(a-1)(1-x) - (b-1)x]$$
+
+**Condiciones para puntos críticos**
+
+Para encontrar la moda, igualamos $f'(x) = 0$:
+
+- **Moda única**: Cuando $a > 1$ y $b > 1$, existe una moda en $x = \frac{a-1}{a+b-2}$
+- **Sin moda**: Cuando $a \leq 1$ o $b \leq 1$, la función es monótona
+
+## Función de distribución Beta (CDF)
+
+La función de distribución o de probabiliad acumulada (CDF) de la distribución beta está definida como:
+
+$$F(x; a, b) = P(X \leq x) = \int_0^x \frac{1}{B(a,b)} t^{a-1}(1-t)^{b-1} \, dt$$
+
+para $0 \leq x \leq 1$, donde $a > 0$ y $b > 0$ son los parámetros de forma.
+
+**Propiedades fundamentales de la CDF**
+
+1.  **Propiedades Básicas**
+
+La CDF beta satisface todas las propiedades fundamentales de una función de distribución:
+
+- **Monotonía**: $F(x)$ es una función no decreciente
+- **Continuidad**: $F(x)$ es continua en todo su dominio
+- **Límites**: $F(0) = 0$ y $F(1) = 1$
+- **Valores en** $[0,1]$: $0 \leq F(x) \leq 1$ para todo $x \in [0,1]$
+
+2.  **Simetría**
+
+La CDF beta presenta simetría cuando $a = b$:
+
+$$F(x; a, a) = 1 - F(1-x; a, a)$$
+
+3.  **Relación con otras distribuciones**
+
+- **Distribución Uniforme**: Cuando $a = b = 1$, $F(x; 1, 1) = x$
+
+### CDF por Categorías de Distribución
+
+::: panel-tabset
+#### Uniforme y simétricas
+
+```{r}
+
+# CDF para distribuciones uniformes y simétricas
+x <- seq(0, 1, length.out = 1000)
+
+params_simetricas <- list(
+  c(1, 1),    
+  c(2, 2),    
+  c(3, 3),    
+  c(5, 5),    
+  c(0.5, 0.5) 
+)
+
+df_simetricas <- data.frame()
+for (param in params_simetricas) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    cdf = pbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_simetricas <- rbind(df_simetricas, df_temp)
+}
+
+cdf_unif_sim <- ggplot(df_simetricas, aes(x = x, y = cdf, color = parametros)) +
+  geom_line(linewidth = 1.3) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", alpha = 0.5, color = "gray50") +
+  labs(
+    title = "CDF de Distribuciones Simétricas",
+    x = "x",
+    y = "F(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  scale_color_viridis_d(option = "viridis") +
+  annotate("text", x = 0.52, y = 0.48, label = "(0.5, 0.5)", 
+           size = 5, color = "red", fontface = "bold")
+
+ggplotly(cdf_unif_sim)
+```
+
+Todas pasan por el punto $(0.5, 0.5)$ debido a la simetría.
+
+#### Asimétricas (a \> b)
+
+```{r}
+
+# CDF para distribuciones asimétricas hacia la derecha
+params_asim_der <- list(
+  c(2, 1),    
+  c(3, 1),    
+  c(5, 1),    
+  c(3, 2),    
+  c(5, 2)     
+)
+
+df_asim_der <- data.frame()
+for (param in params_asim_der) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    cdf = pbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_asim_der <- rbind(df_asim_der, df_temp)
+}
+
+cdf_asimetrica <- ggplot(df_asim_der, aes(x = x, y = cdf, color = parametros)) +
+  geom_line(linewidth = 1.3) +
+  labs(
+    title = "CDF de Distribuciones Asimétricas (a > b)",
+    x = "x",
+    y = "F(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  scale_color_brewer(palette = "Set1")
+
+ggplotly(cdf_asimetrica)
+```
+
+#### Asimétricas (a \< b)
+
+```{r}
+#| echo: true
+#| fig-width: 12
+#| fig-height: 6
+
+# CDF para distribuciones asimétricas hacia la izquierda
+params_asim_izq <- list(
+  c(1, 2),    
+  c(1, 3),    
+  c(1, 5),    
+  c(2, 3),    
+  c(2, 5)     
+)
+
+df_asim_izq <- data.frame()
+for (param in params_asim_izq) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    cdf = pbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_asim_izq <- rbind(df_asim_izq, df_temp)
+}
+
+ggplot(df_asim_izq, aes(x = x, y = cdf, color = parametros)) +
+  geom_line(linewidth = 1.3) +
+  labs(
+    title = "CDF de Distribuciones Asimétricas (a < b)",
+    subtitle = "La masa de probabilidad se concentra hacia valores menores",
+    x = "x",
+    y = "F(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  scale_color_viridis_d(option = "cividis")
+```
+
+#### Casos extremos
+
+```{r}
+#| echo: true
+#| fig-width: 12
+#| fig-height: 6
+
+# CDF para casos extremos
+params_extremos <- list(
+  c(0.1, 0.1),  # Muy concentrada en extremos
+  c(0.5, 5),    # Muy asimétrica
+  c(5, 0.5),    # Muy asimétrica opuesta
+  c(10, 1),     # Concentrada a la derecha
+  c(1, 10)      # Concentrada a la izquierda
+)
+
+df_extremos <- data.frame()
+for (param in params_extremos) {
+  a <- param[1]
+  b <- param[2]
+  df_temp <- data.frame(
+    x = x,
+    cdf = pbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")")
+  )
+  df_extremos <- rbind(df_extremos, df_temp)
+}
+
+ggplot(df_extremos, aes(x = x, y = cdf, color = parametros)) +
+  geom_line(linewidth = 1.3) +
+  labs(
+    title = "CDF de Casos Extremos",
+    subtitle = "Comportamientos límite de la distribución beta",
+    x = "x",
+    y = "F(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  scale_color_viridis_d(option = "turbo")
+```
+:::
+
+### Comparación CDF vs PDF
+
+Para entender mejor la relación entre la PDF y la CDF:
+
+```{r}
+
+# Crear comparación PDF vs CDF para casos representativos
+casos_comparacion <- list(
+  c(2, 2),    # Simétrica
+  c(2, 5),    # Asimétrica
+  c(0.5, 0.5), # Forma de U
+  c(5, 1)     # Muy asimétrica
+)
+
+plots_comparacion <- list()
+
+for (i in seq_along(casos_comparacion)) {
+  a <- casos_comparacion[[i]][1]
+  b <- casos_comparacion[[i]][2]
+  
+  df_comp <- data.frame(
+    x = x,
+    pdf = dbeta(x, a, b),
+    cdf = pbeta(x, a, b)
+  )
+  
+  # Normalizar PDF para visualización conjunta
+  df_comp$pdf_norm <- df_comp$pdf / max(df_comp$pdf[is.finite(df_comp$pdf)])
+  
+  df_long <- df_comp %>%
+    select(x, pdf_norm, cdf) %>%
+    tidyr::pivot_longer(cols = c("pdf_norm", "cdf"), 
+                       names_to = "tipo", 
+                       values_to = "valor")
+  
+  df_long$tipo <- factor(df_long$tipo, 
+                        levels = c("pdf_norm", "cdf"),
+                        labels = c("PDF (normalizada)", "CDF"))
+  
+  p <- ggplot(df_long, aes(x = x, y = valor, color = tipo)) +
+    geom_line(linewidth = 1.2) +
+    labs(
+      title = paste0("Beta(", a, ", ", b, ")"),
+      x = "x",
+      y = "Valor",
+      color = "Función"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 12, face = "bold"),
+      legend.position = "bottom"
+    ) +
+    scale_color_manual(values = c("blue", "red"))
+  
+  plots_comparacion[[i]] <- p
+}
+
+grid.arrange(grobs = plots_comparacion, ncol = 2,
+             top = "Comparación entre PDF (normalizada) y CDF")
+```
+
+### Visualización en $\mathbb{R}^3$ de la CDF
+
+```{r}
+#| echo: true
+#| fig-height: 8
+
+# Crear superficie 3D de la CDF para un valor fijo de x
+x_fijo <- 0.3
+a_vals <- seq(0.5, 5, length.out = 30)
+b_vals <- seq(0.5, 5, length.out = 30)
+
+# Crear matriz de valores de CDF
+cdf_matrix <- outer(a_vals, b_vals, function(a, b) pbeta(x_fijo, a, b))
+
+# Crear gráfico 3D interactivo
+plot_3d_cdf <- plot_ly(
+  x = ~a_vals,
+  y = ~b_vals,
+  z = ~cdf_matrix,
+  type = "surface",
+  colorscale = "Viridis",
+  colorbar = list(title = paste0("F(", x_fijo, "; a, b)"))
+) %>%
+  layout(
+    title = list(
+      text = paste0("CDF Beta F(", x_fijo, "; a, b) en función de los parámetros"),
+      font = list(size = 16)
+    ),
+    scene = list(
+      xaxis = list(title = "Parámetro a"),
+      yaxis = list(title = "Parámetro b"),
+      zaxis = list(title = paste0("F(", x_fijo, ")")),
+      camera = list(
+        eye = list(x = 1.5, y = 1.5, z = 1.5)
+      )
+    ),
+    margin = list(l = 0, r = 0, b = 0, t = 50)
+  )
+
+plot_3d_cdf
+```
+
+<br>
+
+**Interpretación de la superficie**
+
+La superficie muestra cómo varía $F(0.3; a, b)$ según los parámetros:
+
+- **Valores bajos**: Cuando $a$ es grande y $b$ es pequeño (esquina inferior derecha)
+- **Valores altos**: Cuando $a$ es pequeño y $b$ es grande (esquina superior izquierda)
+- **Transición suave**: La superficie es continua y diferenciable en todo el dominio
+
+### Cálculo de probabilidades
+
+La CDF permite calcular probabilidades de intervalos:
+
+$$P(a \leq X \leq b) = F(b) - F(a)$$
+
+```{r}
+#| echo: true
+
+# Función para calcular probabilidades de intervalos
+calcular_prob_intervalo <- function(a_param, b_param, x1, x2) {
+  if (x1 > x2) {
+    temp <- x1
+    x1 <- x2
+    x2 <- temp
+  }
+  
+  prob <- pbeta(x2, a_param, b_param) - pbeta(x1, a_param, b_param)
+  return(prob)
+}
+
+# Ejemplos de cálculos de probabilidades
+cat("CÁLCULO DE PROBABILIDADES USANDO LA CDF\n")
+cat("=======================================\n\n")
+
+# Caso: Beta(2, 3)
+a_ej <- 2
+b_ej <- 3
+
+intervalos <- list(
+  c(0, 0.5),
+  c(0.2, 0.8),
+  c(0.5, 1),
+  c(0.1, 0.3),
+  c(0.7, 0.9)
+)
+
+cat(sprintf("Para X ~ Beta(%.0f, %.0f):\n\n", a_ej, b_ej))
+
+for (intervalo in intervalos) {
+  x1 <- intervalo[1]
+  x2 <- intervalo[2]
+  prob <- calcular_prob_intervalo(a_ej, b_ej, x1, x2)
+  
+  cat(sprintf("P(%.1f ≤ X ≤ %.1f) = %.4f\n", x1, x2, prob))
+}
+
+
+
+# Visualizar estas probabilidades
+x_viz <- seq(0, 1, length.out = 1000)
+pdf_viz <- dbeta(x_viz, a_ej, b_ej)
+cdf_viz <- pbeta(x_viz, a_ej, b_ej)
+
+df_viz <- data.frame(x = x_viz, pdf = pdf_viz, cdf = cdf_viz)
+
+p_prob <- ggplot(df_viz, aes(x = x)) +
+  geom_line(aes(y = cdf), color = "blue", linewidth = 1.2) +
+  geom_area(data = subset(df_viz, x >= 0.2 & x <= 0.8), 
+            aes(y = pdf/max(pdf_viz)), alpha = 0.3, fill = "red") +
+  geom_vline(xintercept = c(0.2, 0.8), color = "red", linetype = "dashed") +
+  labs(
+    title = sprintf("CDF de Beta(%.0f, %.0f) y P(0.2 ≤ X ≤ 0.8)", a_ej, b_ej),
+    subtitle = sprintf("Área sombreada representa P(0.2 ≤ X ≤ 0.8) = %.4f", 
+                      calcular_prob_intervalo(a_ej, b_ej, 0.2, 0.8)),
+    x = "x",
+    y = "F(x)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 13, face = "bold")) +
+  annotate("label", x = 0.5, y = 0.25, 
+           label = paste0("F(0.8) - F(0.2) = ", 
+                         round(calcular_prob_intervalo(a_ej, b_ej, 0.2, 0.8), 4)),
+           size = 4, color = "red", fontface = "bold")
+
+print(p_prob)
+```
+
+## Medidas descriptivas
+
+### Media
+
+La media de la distribución beta está dada por:
+
+$$E(X) = \mu = \frac{a}{a + b}$$
+
+**Interpretación**
+
+- La media siempre se encuentra en el intervalo $(0, 1)$
+- Es una **combinación ponderada** de los parámetros: el peso relativo de $a$ respecto a la suma total
+- Cuando $a = b$, la media es exactamente $0.5$ (distribución simétrica)
+- La media se acerca a $1$ cuando $a \gg b$
+- La media se acerca a $0$ cuando $b \gg a$
+
+**Visualización de la media**
+
+```{r}
+#| warning: false
+
+# Crear gráfico mostrando cómo varía la media
+x <- seq(0.001, 0.999, length.out = 1000)
+media_beta <- function(a, b) {
+  return(a / (a + b))
+}
+
+# Casos seleccionados para visualizar
+casos_viz_media <- list(
+  c(1, 4),   # Media = 0.2
+  c(2, 3),   # Media = 0.4  
+  c(1, 1),   # Media = 0.5
+  c(3, 2),   # Media = 0.6
+  c(4, 1)    # Media = 0.8
+)
+
+df_media_viz <- data.frame()
+for (caso in casos_viz_media) {
+  a <- caso[1]
+  b <- caso[2]
+  media <- media_beta(a, b)
+  
+  df_temp <- data.frame(
+    x = x,
+    density = dbeta(x, a, b),
+    parametros = paste0("Beta(", a, ", ", b, ")"),
+    media = media
+  )
+  df_media_viz <- rbind(df_media_viz, df_temp)
+}
+
+ggplot(df_media_viz, aes(x = x, y = density, color = parametros)) +
+  geom_line(linewidth = 1.2) +
+  geom_vline(data = df_media_viz %>% 
+               group_by(parametros, media) %>% 
+               summarise(.groups = "drop"), 
+             aes(xintercept = media, color = parametros), 
+             linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Media de la distribución Beta",
+    subtitle = "Las líneas verticales muestran la media μ = a/(a+b)",
+    x = "x",
+    y = "f(x)",
+    color = "Parámetros"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom"
+  ) +
+  scale_color_viridis_d(option = "plasma")
+```
+
+### Varianza
+
+La varianza de la distribución beta está dada por:
+
+$$\text{Var}(X) = \sigma^2 = \frac{ab}{(a + b)^2(a + b + 1)}$$
+
+La desviación estándar es:
+
+$$\sigma = \sqrt{\frac{ab}{(a + b)^2(a + b + 1)}}$$
+
+**Interpretación**
+
+- La varianza siempre es positiva y menor que $\frac{1}{4}$
+- El máximo valor de varianza ($\frac{1}{12} \approx 0.083$) se alcanza cuando $a = b = 1$ (distribución uniforme)
+- La varianza disminuye cuando $a + b$ aumenta (mayor concentración)
+- Para distribuciones simétricas ($a = b$): $\text{Var}(X) = \frac{1}{4(2a + 1)}$
+
+**Mapa de Calor de la varianza**
+
+```{r}
+#| echo: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Crear mapa de calor de la varianza en función de los parámetros
+a_range <- seq(0.5, 10, length.out = 50)
+b_range <- seq(0.5, 10, length.out = 50)
+
+# Crear matriz de varianzas
+varianza_matrix <- outer(a_range, b_range, function(a, b) {
+  (a * b) / ((a + b)^2 * (a + b + 1))
+})
+
+# Convertir a data frame para ggplot
+df_varianza_heatmap <- expand.grid(a = a_range, b = b_range)
+df_varianza_heatmap$varianza <- as.vector(varianza_matrix)
+
+ggplot(df_varianza_heatmap, aes(x = a, y = b, fill = varianza)) +
+  geom_tile() +
+  scale_fill_viridis_c(name = "Varianza", option = "plasma") +
+  labs(
+    title = "Mapa de Calor: Varianza de la Distribución Beta",
+    subtitle = "La varianza es máxima cerca de a = b = 1 y decrece cuando a + b aumenta",
+    x = "Parámetro a",
+    y = "Parámetro b"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12)
+  ) +
+  coord_equal()
+```
+
+### Moda
+
+La moda de la distribución beta depende de los valores de los parámetros:
+
+- **Si** $a > 1$ y $b > 1$: $\text{Moda} = \frac{a - 1}{a + b - 2}$
+- **Si** $a = b = 1$: Todos los valores en $(0,1)$ son modas (distribución uniforme)
+- **Si** $a < 1$ y $b < 1$: Bimodal en los extremos (moda en 0 y 1)
+- **Si** $a \leq 1$ y $b > 1$: Moda en $x = 0$
+- **Si** $a > 1$ y $b \leq 1$: Moda en $x = 1$
+
+**Interpretación**
+
+- La moda representa el valor más probable de la distribución
+- Solo existe una moda única cuando ambos parámetros son mayores que 1
+- La moda siempre está entre 0 y 1 cuando existe
+
+**Visualización de la moda**
+
+```{r}
+#| warning: false
+
+
+moda_beta <- function(a, b) {
+  if (a > 1 && b > 1) {
+    moda <- (a - 1) / (a + b - 2)
+    tipo <- "Unimodal"
+  } else if (a == 1 && b == 1) {
+    moda <- "Todos los puntos"
+    tipo <- "Uniforme"
+  } else if (a < 1 && b < 1) {
+    moda <- "0 y 1"
+    tipo <- "Bimodal"
+  } else if (a <= 1 && b > 1) {
+    moda <- "0 (límite)"
+    tipo <- "Monótona decreciente"
+  } else if (a > 1 && b <= 1) {
+    moda <- "1 (límite)"
+    tipo <- "Monótona creciente"
+  } else {
+    moda <- NA
+    tipo <- "Indefinida"
+  }
+  
+  return(list(moda = moda, tipo = tipo))
+}
+
+
+# Crear gráficos mostrando diferentes tipos de modalidad
+x <- seq(0.001, 0.999, length.out = 1000)
+
+casos_moda_viz <- list(
+  "Unimodal" = list(c(2, 3), c(3, 2), c(5, 3)),
+  "Uniforme" = list(c(1, 1)),
+  "Bimodal" = list(c(0.5, 0.5), c(0.3, 0.3)),
+  "Monótona" = list(c(0.5, 2), c(2, 0.5))
+)
+
+plots_moda <- list()
+
+for (tipo in names(casos_moda_viz)) {
+  df_tipo <- data.frame()
+  
+  for (caso in casos_moda_viz[[tipo]]) {
+    a <- caso[1]
+    b <- caso[2]
+    resultado_moda <- moda_beta(a, b)
+    
+    df_temp <- data.frame(
+      x = x,
+      density = dbeta(x, a, b),
+      parametros = paste0("Beta(", a, ", ", b, ")"),
+      moda_val = ifelse(is.numeric(resultado_moda$moda), resultado_moda$moda, NA)
+    )
+    df_tipo <- rbind(df_tipo, df_temp)
+  }
+  
+  p <- ggplot(df_tipo, aes(x = x, y = density, color = parametros)) +
+    geom_line(linewidth = 1.2) +
+    labs(
+      title = paste("Tipo:", tipo),
+      x = "x",
+      y = "f(x)",
+      color = "Parámetros"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 12, face = "bold"),
+      legend.position = "bottom",
+      legend.text = element_text(size = 9)
+    ) +
+    scale_color_viridis_d()
+  
+  # Agregar líneas de moda si existen
+  if (tipo == "Unimodal") {
+    moda_data <- df_tipo %>% 
+      filter(!is.na(moda_val)) %>%
+      group_by(parametros, moda_val) %>%
+      summarise(.groups = "drop")
+    
+    if (nrow(moda_data) > 0) {
+      p <- p + geom_vline(data = moda_data, 
+                         aes(xintercept = moda_val, color = parametros),
+                         linetype = "dashed", linewidth = 0.8)
+    }
+  }
+  
+  plots_moda[[tipo]] <- p
+}
+
+grid.arrange(grobs = plots_moda, ncol = 2,
+             top = "Tipos de Modalidad en la Distribución Beta")
+```
+
+## Ejercicios Propuestos
+
+::: {#exr-simulacion_beta}
+### Simulación y Visualización
+
+Genera muestras de diferentes tamaños desde 100 hasta 10000 de una distribución beta(2,5).
+
+1.  Genera una gráfica de convergencia de la media muestral a la media teórica a medida que aumenta el tamaño de la muestra.
+
+2.  De manera análoga, genera una gráfica de convergencia de la varianza muestral a la varianza teórica a medida que aumenta el tamaño de la muestra.
+
+3.  Para el tamaño de muestra más grande, genera un histograma de la muestra junto con la curva de la PDF teórica superpuesta.
+:::
+
+::: {#exr-tcl_beta}
+### Teorema Central del Límite
+
+Para diferentes tamaños de muestra verifica el Teorema Central del Límite (TCL) utilizando la distribución beta(2,5).
+:::

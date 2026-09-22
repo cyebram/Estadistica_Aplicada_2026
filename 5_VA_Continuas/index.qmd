@@ -1,0 +1,38 @@
+# Contenido {.unnumbered}
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+<br>
+
+Este documento explora diferentes distribuciones de las variables aleatorias continuas más comunes; brindando sus definiciones, funciones de probabilidad, funciones de distribución, parámetros, parámetros estadísticos (media, varianza, desviación estándar), resultados importantes y ejemplos prácticos.
+
+Se presentan las siguientes distribuciones continuas:
+
+- Distribución uniforme continua
+
+- Distribución exponencial
+
+- Distribución gamma
+
+- Distribución beta
+
+- Distribución Weibull
+
+- Distribucion ji-cuadrada
+
+- Distribución t
+
+- Dsitribución F
+
+Al final de cada sección se incluyen ejercicios que deben ser resueltos para reforzar el aprendizaje.
+
+<br>
+
+Referencia:
+
+- Rincón, Luis (2014). *Introducción a la Probabilidad*. Facultad de Ciencias, UNAM.
