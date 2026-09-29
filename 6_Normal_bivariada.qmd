@@ -1,0 +1,592 @@
+---
+title: "Distribución Normal Bivariada"
+lang: es
+---
+
+
+```{r setup}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Cargar todas las librerías necesarias
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(plotly)
+library(viridis)
+library(MASS)
+library(mvtnorm)
+library(ellipse)
+library(knitr)
+
+# Configurar opciones globales
+options(digits = 4)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+
+# Fijar semilla para reproducibilidad
+set.seed(2024)
+```
+
+
+
+# Definición
+
+Se dice que el vector aleatorio continuo $(X, Y)$ tiene **distribución normal bivariada** con parámetros $\mu_1$, $\mu_2$, $\sigma_1^2$, $\sigma_2^2$, y $\rho$, donde:
+
+- $E(X)=\mu_1$, $E(Y)=\mu_2$ son números reales cualesquiera
+- $\sigma_1 > 0$, $\sigma_2 > 0$, son respectivamente las desviaciones estándar de $X$ y $Y$ 
+- $-1 < \rho < 1$ es el coeficiente de correlación entre $X$ y $Y$
+
+Su función de densidad de probabilidad está dada por:
+
+$$f(x,y) = \frac{1}{2\pi\sigma_1\sigma_2\sqrt{1-\rho^2}} \exp\left(-\frac{1}{2(1-\rho^2)}\left[\frac{(x-\mu_1)^2}{\sigma_1^2} - \frac{2\rho(x-\mu_1)(y-\mu_2)}{\sigma_1\sigma_2} + \frac{(y-\mu_2)^2}{\sigma_2^2}\right]\right)$$
+
+## Caso Estándar
+
+Cuando $\mu_1 = \mu_2 = 0$ y $\sigma_1^2 = \sigma_2^2 = 1$, se obtiene la **distribución normal bivariada estándar**:
+
+$$f(x,y) = \frac{1}{2\pi\sqrt{1-\rho^2}} \exp\left(-\frac{1}{2(1-\rho^2)}(x^2 - 2\rho xy + y^2)\right)$$
+
+## Notación Matricial usando la Matriz de Covarianzas
+
+La distribución normal bivariada puede expresarse de forma más compacta usando la matriz de covarianzas. Si definimos:
+
+$$\boldsymbol{\mu} = \begin{pmatrix} \mu_1 \\ \mu_2 \end{pmatrix}, \quad \mathbf{x} = \begin{pmatrix} x \\ y \end{pmatrix}$$
+
+$$\boldsymbol{\Sigma} = \text{Var}(\mathbf{X}) = \begin{pmatrix} \sigma_1^2 & \rho\sigma_1\sigma_2 \\ \rho\sigma_1\sigma_2 & \sigma_2^2 \end{pmatrix}$$
+
+Entonces la función de densidad se puede escribir como:
+
+$$f(\mathbf{x}) = \frac{1}{2\pi\sqrt{|\boldsymbol{\Sigma}|}} \exp\left(-\frac{1}{2}(\mathbf{x} - \boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu})\right)$$
+
+donde $|\boldsymbol{\Sigma}| = \sigma_1^2\sigma_2^2(1-\rho^2)$ es el determinante de la matriz de covarianzas.
+
+```{r}
+#| code-fold: true
+
+# Función para crear parámetros de la distribución normal bivariada
+crear_parametros <- function(mu1, mu2, sigma1, sigma2, rho) {
+  # Vector de medias
+  mu <- c(mu1, mu2)
+  
+  # Matriz de covarianzas
+  Sigma <- matrix(c(sigma1^2, rho*sigma1*sigma2,
+                    rho*sigma1*sigma2, sigma2^2), 
+                  nrow = 2, ncol = 2)
+  
+  return(list(mu = mu, Sigma = Sigma, 
+              mu1 = mu1, mu2 = mu2, 
+              sigma1 = sigma1, sigma2 = sigma2, 
+              rho = rho))
+}
+
+# Función para calcular la densidad normal bivariada
+densidad_normal_biv <- function(x, y, params) {
+  X <- cbind(x, y)
+  densidades <- dmvnorm(X, mean = params$mu, sigma = params$Sigma)
+  return(densidades)
+}
+
+# Ejemplos de parámetros para visualización
+casos_ejemplo <- list(
+  "Caso 1: Independientes" = crear_parametros(0, 0, 1, 1, 0),
+  "Caso 2: Correlación positiva" = crear_parametros(0, 0, 1, 1, 0.7),
+  "Caso 3: Correlación negativa" = crear_parametros(0, 0, 1, 1, -0.7),
+  "Caso 4: Diferentes varianzas" = crear_parametros(1, 2, 2, 0.5, 0.3)
+)
+
+# Mostrar matrices de covarianza
+cat("MATRICES DE COVARIANZA PARA LOS CASOS EJEMPLO\n")
+cat("=============================================\n\n")
+
+for (nombre in names(casos_ejemplo)) {
+  params <- casos_ejemplo[[nombre]]
+  cat(sprintf("%s:\n", nombre))
+  cat("μ =", sprintf("(%.1f, %.1f)", params$mu1, params$mu2), "\n")
+  cat("Σ =\n")
+  print(round(params$Sigma, 3))
+  cat(sprintf("Correlación ρ = %.1f\n", params$rho))
+  cat(sprintf("Det(Σ) = %.3f\n\n", det(params$Sigma)))
+}
+```
+
+# Visualizaciones de la Función de Densidad
+
+
+```{r}
+#| code-fold: true
+#| fig-height: 10
+
+# Crear grilla para evaluación de la densidad
+crear_grilla_densidad <- function(params, rango = 3, resolucion = 50) {
+  # Determinar rango basado en las desviaciones estándar
+  x_range <- seq(params$mu1 - rango*params$sigma1, 
+                 params$mu1 + rango*params$sigma1, 
+                 length.out = resolucion)
+  y_range <- seq(params$mu2 - rango*params$sigma2, 
+                 params$mu2 + rango*params$sigma2, 
+                 length.out = resolucion)
+  
+  # Crear grilla
+  grid <- expand.grid(x = x_range, y = y_range)
+  grid$z <- dmvnorm(as.matrix(grid[, c("x", "y")]), 
+                    mean = params$mu, 
+                    sigma = params$Sigma)
+  
+  # Convertir a matriz para plot_ly
+  z_matrix <- matrix(grid$z, nrow = length(x_range), ncol = length(y_range))
+  
+  return(list(x = x_range, y = y_range, z = z_matrix, grid = grid))
+}
+
+
+
+
+i <- 1
+
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  datos <- crear_grilla_densidad(params)
+  
+  p3d <- plot_ly(
+    x = datos$x,
+    y = datos$y, 
+    z = datos$z,
+    type = "surface",
+    colorscale = "Viridis",
+    colorbar = list(title = "Densidad")
+  ) %>%
+    layout(
+      title = list(text = nombre, font = list(size = 14)),
+      scene = list(
+        xaxis = list(title = "X"),
+        yaxis = list(title = "Y"),
+        zaxis = list(title = "f(x,y)"),
+        camera = list(eye = list(x = 1.5, y = 1.5, z = 1.5))
+      ),
+      margin = list(t = 50)
+    )
+  
+p3d
+
+
+
+```
+
+
+<br>
+
+
+
+```{r}
+#| code-fold: true
+
+i <- 2
+
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  datos <- crear_grilla_densidad(params)
+  
+  p3d <- plot_ly(
+    x = datos$x,
+    y = datos$y, 
+    z = datos$z,
+    type = "surface",
+    colorscale = "Viridis",
+    colorbar = list(title = "Densidad")
+  ) %>%
+    layout(
+      title = list(text = nombre, font = list(size = 14)),
+      scene = list(
+        xaxis = list(title = "X"),
+        yaxis = list(title = "Y"),
+        zaxis = list(title = "f(x,y)"),
+        camera = list(eye = list(x = 1.5, y = 1.5, z = 1.5))
+      ),
+      margin = list(t = 50)
+    )
+  
+p3d
+```
+
+
+
+<br>
+
+
+
+```{r}
+#| code-fold: true
+
+i <- 3
+
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  datos <- crear_grilla_densidad(params)
+  
+  p3d <- plot_ly(
+    x = datos$x,
+    y = datos$y, 
+    z = datos$z,
+    type = "surface",
+    colorscale = "Viridis",
+    colorbar = list(title = "Densidad")
+  ) %>%
+    layout(
+      title = list(text = nombre, font = list(size = 14)),
+      scene = list(
+        xaxis = list(title = "X"),
+        yaxis = list(title = "Y"),
+        zaxis = list(title = "f(x,y)"),
+        camera = list(eye = list(x = 1.5, y = 1.5, z = 1.5))
+      ),
+      margin = list(t = 50)
+    )
+  
+p3d
+```
+
+
+
+<br>
+
+
+
+```{r}
+#| code-fold: true
+
+i <- 4
+
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  datos <- crear_grilla_densidad(params)
+  
+  p3d <- plot_ly(
+    x = datos$x,
+    y = datos$y, 
+    z = datos$z,
+    type = "surface",
+    colorscale = "Viridis",
+    colorbar = list(title = "Densidad")
+  ) %>%
+    layout(
+      title = list(text = nombre, font = list(size = 14)),
+      scene = list(
+        xaxis = list(title = "X"),
+        yaxis = list(title = "Y"),
+        zaxis = list(title = "f(x,y)"),
+        camera = list(eye = list(x = 1.5, y = 1.5, z = 1.5))
+      ),
+      margin = list(t = 50)
+    )
+  
+p3d
+```
+
+
+<br>
+
+## Visualización con Curvas de Nivel
+
+```{r}
+#| code-fold: true
+#| fig-width: 14
+#| fig-height: 10
+
+# Crear gráficos de contorno para todos los casos
+plots_contorno <- list()
+
+for (i in seq_along(casos_ejemplo)) {
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  datos <- crear_grilla_densidad(params, rango = 3, resolucion = 100)
+  
+  p_contorno <- ggplot(datos$grid, aes(x = x, y = y, z = z)) +
+    geom_contour_filled(bins = 15, alpha = 0.8) +
+    geom_contour(bins = 15, color = "white", alpha = 0.3, linewidth = 0.3) +
+    geom_point(x = params$mu1, y = params$mu2, 
+               color = "red", size = 3, shape = 16) +
+    labs(
+      title = nombre,
+      subtitle = paste0("μ1=", params$mu1, ", μ2=", params$mu2, 
+                       ", σ1=", params$sigma1, ", σ2=", params$sigma2,
+                       ", ρ=", params$rho),
+      x = "X", y = "Y",
+      fill = "Densidad"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 10),
+      legend.position = "right"
+    ) +
+    coord_equal() +
+    scale_fill_viridis_d(option = "plasma")
+  
+  plots_contorno[[i]] <- p_contorno
+}
+
+# Mostrar en grilla
+grid.arrange(grobs = plots_contorno, ncol = 2,
+             top = "Curvas de Nivel de la Densidad Normal Bivariada")
+```
+
+
+
+
+## Efecto de la Correlación
+
+```{r}
+#| code-fold: true
+#| fig-width: 14
+#| fig-height: 8
+
+# Crear serie de correlaciones para mostrar el efecto
+rhos <- c(-0.9, -0.5, 0, 0.5, 0.9)
+plots_rho <- list()
+
+for (i in seq_along(rhos)) {
+  rho <- rhos[i]
+  params <- crear_parametros(0, 0, 1, 1, rho)
+  datos <- crear_grilla_densidad(params, rango = 3, resolucion =80)
+  
+  p <- ggplot(datos$grid, aes(x = x, y = y, z = z)) +
+    geom_contour_filled(bins = 10, alpha = 0.8) +
+    geom_contour(bins = 10, color = "white", alpha = 0.4, linewidth = 0.2) +
+    labs(
+      title = paste0("ρ = ", rho),
+      x = "X", y = "Y"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 11, face = "bold"),
+      legend.position = "none",
+      axis.text = element_text(size = 8)
+    ) +
+    coord_equal() +
+    scale_fill_viridis_d(option = "viridis") +
+    xlim(-3, 3) + ylim(-3, 3)
+  
+  plots_rho[[i]] <- p
+}
+
+grid.arrange(grobs = plots_rho, ncol = 5,
+             top = "Efecto de la Correlación ρ en la Forma de la Distribución")
+```
+
+
+
+# Simulación de Datos
+
+## Generación de Muestras
+
+```{r}
+#| code-fold: true
+
+# Función para generar muestras de la normal bivariada
+generar_muestra <- function(n, params) {
+  muestra <- mvrnorm(n = n, mu = params$mu, Sigma = params$Sigma)
+  return(data.frame(x = muestra[, 1], y = muestra[, 2]))
+}
+
+# Generar muestras para cada caso
+n_muestra <- 1000
+muestras <- list()
+
+for (nombre in names(casos_ejemplo)) {
+  params <- casos_ejemplo[[nombre]]
+  muestras[[nombre]] <- generar_muestra(n_muestra, params)
+}
+
+# Calcular estadísticos empíricos vs teóricos
+cat("COMPARACIÓN: ESTADÍSTICOS TEÓRICOS VS EMPÍRICOS\n")
+cat("===============================================\n\n")
+
+for (nombre in names(casos_ejemplo)) {
+  params <- casos_ejemplo[[nombre]]
+  muestra <- muestras[[nombre]]
+  
+  # Estadísticos empíricos
+  media_emp <- colMeans(muestra)
+  cov_emp <- cov(muestra)
+  cor_emp <- cor(muestra$x, muestra$y)
+  
+  cat(sprintf("%s:\n", nombre))
+  cat("Medias - Teórica: (", sprintf("%.2f, %.2f", params$mu[1], params$mu[2]), 
+      ") | Empírica: (", sprintf("%.2f, %.2f", media_emp[1], media_emp[2]), ")\n")
+  cat("Correlación - Teórica:", sprintf("%.2f", params$rho), 
+      "| Empírica:", sprintf("%.2f", cor_emp), "\n")
+  cat("Matriz de Covarianza Empírica:\n")
+  print(round(cov_emp, 3))
+  cat("\n")
+}
+```
+
+## Visualización de Muestras Simuladas
+
+```{r}
+#| code-fold: true
+#| fig-width: 14
+#| fig-height: 12
+
+# Crear gráficos de dispersión para las muestras
+plots_scatter <- list()
+
+for (i in seq_along(casos_ejemplo)) {
+  nombre <- names(casos_ejemplo)[i]
+  params <- casos_ejemplo[[nombre]]
+  muestra <- muestras[[nombre]]
+  
+  # Calcular elipses de confianza
+  ellipse_95 <- ellipse(params$Sigma, centre = params$mu, level = 0.95)
+  ellipse_50 <- ellipse(params$Sigma, centre = params$mu, level = 0.50)
+  
+  df_ellipse_95 <- data.frame(x = ellipse_95[, 1], y = ellipse_95[, 2], level = "95%")
+  df_ellipse_50 <- data.frame(x = ellipse_50[, 1], y = ellipse_50[, 2], level = "50%")
+  df_ellipses <- rbind(df_ellipse_95, df_ellipse_50)
+  
+  p <- ggplot() +
+    # Puntos de la muestra
+    geom_point(data = muestra, aes(x = x, y = y), 
+               alpha = 0.6, size = 1, color = "steelblue") +
+    
+    # Elipses de confianza
+    geom_path(data = df_ellipses, aes(x = x, y = y, linetype = level), 
+              color = "red", linewidth = 1.2) +
+    
+    # Media teórica
+    annotate(geom = "point", x = params$mu[1], y = params$mu[2], 
+               color = "red", size = 5, shape = 16, alpha = 0.5) +
+    
+    # Media empírica
+    annotate(geom = "point", x = mean(muestra$x), y = mean(muestra$y), 
+               color = "orange", size = 5, shape = 17, alpha = 0.5) +
+    
+    labs(
+      title = paste0(nombre, " (n = ", n_muestra, ")"),
+      subtitle = paste0("ρ = ", params$rho, " | Media teórica (●) vs empírica (▲)"),
+      x = "X", y = "Y",
+      linetype = "Nivel de confianza"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 11, face = "bold"),
+      plot.subtitle = element_text(size = 9),
+      legend.position = "bottom"
+    ) +
+    coord_equal()
+  
+  plots_scatter[[i]] <- p
+}
+
+grid.arrange(grobs = plots_scatter, ncol = 2,
+             top = "Muestras Simuladas con Elipses de Confianza")
+```
+
+## Análisis de Distribuciones Marginales
+
+```{r}
+#| code-fold: true
+#| fig-width: 14
+#| fig-height: 8
+
+# Comparar distribuciones marginales empíricas vs teóricas
+caso_marginal <- "Caso 2: Correlación positiva"
+params_marg <- casos_ejemplo[[caso_marginal]]
+muestra_marg <- muestras[[caso_marginal]]
+
+# Crear histogramas marginales
+x_seq <- seq(-4, 4, length.out = 200)
+
+# Marginal de X
+df_x_teorica <- data.frame(
+  x = x_seq,
+  density = dnorm(x_seq, params_marg$mu[1], params_marg$sigma1),
+  tipo = "Teórica"
+)
+
+p_marginal_x <- ggplot() +
+  geom_histogram(data = muestra_marg, aes(x = x, y = after_stat(density)), 
+                 bins = 30, alpha = 0.7, fill = "lightblue", color = "white") +
+  geom_line(data = df_x_teorica, aes(x = x, y = density), 
+            color = "red", linewidth = 1.5) +
+  labs(
+    title = "Distribución Marginal de X",
+    subtitle = paste0("N(", params_marg$mu[1], ", ", params_marg$sigma1^2, ")"),
+    x = "X", y = "Densidad"
+  ) +
+  theme_minimal()
+
+# Marginal de Y  
+df_y_teorica <- data.frame(
+  y = x_seq,
+  density = dnorm(x_seq, params_marg$mu[2], params_marg$sigma2),
+  tipo = "Teórica"
+)
+
+p_marginal_y <- ggplot() +
+  geom_histogram(data = muestra_marg, aes(x = y, y = after_stat(density)), 
+                 bins = 30, alpha = 0.7, fill = "lightgreen", color = "white") +
+  geom_line(data = df_y_teorica, aes(x = y, y = density), 
+            color = "red", linewidth = 1.5) +
+  labs(
+    title = "Distribución Marginal de Y",
+    subtitle = paste0("N(", params_marg$mu[2], ", ", params_marg$sigma2^2, ")"),
+    x = "Y", y = "Densidad"
+  ) +
+  theme_minimal()
+
+grid.arrange(p_marginal_x, p_marginal_y, ncol = 2,
+             top = paste0("Distribuciones Marginales - ", caso_marginal))
+```
+
+# Análisis de Correlación y Dependencia
+
+## Matriz de Correlación Visual
+
+```{r}
+#| code-fold: true
+#| fig-width: 10
+#| fig-height: 8
+
+# Crear heatmap de matrices de correlación
+matrices_cor <- data.frame()
+
+for (nombre in names(casos_ejemplo)) {
+  params <- casos_ejemplo[[nombre]]
+  
+  # Convertir matriz de covarianza a correlación
+  D <- diag(c(params$sigma1, params$sigma2))
+  R <- solve(D) %*% params$Sigma %*% solve(D)
+  
+  matrices_cor <- rbind(matrices_cor, data.frame(
+    Caso = nombre,
+    Variable1 = c("X", "X", "Y", "Y"),
+    Variable2 = c("X", "Y", "X", "Y"),
+    Correlacion = as.vector(R)
+  ))
+}
+
+# Crear heatmap
+ggplot(matrices_cor, aes(x = Variable1, y = Variable2, fill = Correlacion)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = round(Correlacion, 2)), color = "white", size = 4, fontface = "bold") +
+  facet_wrap(~Caso, ncol = 2) +
+  labs(
+    title = "Matrices de Correlación por Caso",
+    x = "Variable", y = "Variable",
+    fill = "Correlación"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 10, face = "bold")
+  ) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0, limits = c(-1, 1))
+```

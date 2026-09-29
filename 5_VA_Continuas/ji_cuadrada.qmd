@@ -851,11 +851,122 @@ Para diferentes tamaños de muestra verifica numéricamente el Teorema Central d
 
 Mediante simulaciones numéricas, verifica la propiedad de aditividad de la distribución ji-cuadrada sumando variables aleatorias normales estándar elevadas al cuadrado. Compara los resultados con la distribución ji-cuadrada teórica.
 
+
+```{r}
+N <- 10000
+
+nvar_vec <- c(4,8, 12, 15)
+
+suma_function <- function(nvar, N){
+  var_sum <- rnorm(N)^2
+  for(k in 2:nvar) {
+    var_sum <- var_sum + rnorm(N)^2
+  }
+  return(var_sum) 
+}
+
+data_var <- data.frame()
+
+for (nvar in nvar_vec) {
+  df_temp <- data.frame(
+    Valor = suma_function(nvar, N),
+    n_factor = paste("n =", nvar)
+  )
+  data_var <- rbind(data_var, df_temp)
+}
+
+data_var$n_factor <- factor(data_var$n_factor, levels = paste("n =", nvar_vec))
+
+df_ji <- data.frame()
+x_range <- seq(0,40, length.out = 250)
+
+for (nvar in nvar_vec) {
+  df_temp <- data.frame(
+    x = x_range,
+    y = dchisq(x_range, nvar),
+    n_factor = paste("n =", nvar)
+  )
+  df_ji <- rbind(df_ji, df_temp)
+}
+
+df_ji$n_factor <- factor(df_ji$n_factor, levels = paste("n =", nvar_vec))
+
+
+
+# Crear histogramas para cada tamaño de muestra
+ggplot(data_var) +
+  geom_histogram(aes(x= Valor, y = after_stat(density)), bins = 50, 
+                 fill = "lightblue", color = "black", alpha = 0.7, boundary = 0) +
+  # Superponer curva teórica
+  geom_line(data = df_ji, aes(x = x, y = y), 
+            color = "red", linewidth = 1, alpha = 0.65) +
+  facet_wrap(~n_factor, scales = "free_y", ncol = 2) +
+  labs(title = "Simulación proposición",
+       x = " ",
+       y = "Densidad",
+       caption = "Curva roja: Ji cuadrada teórica") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+```
+
+
+
+
+
 :::
 
 ::: {#exr-aproximacion_normal}
 
 Mediante simulaciones numéricas, verifica la aproximación normal de la distribución ji-cuadrada para diferentes valores de n (por ejemplo, n = 10, 30, 50, 100). Compara las distribuciones muestrales con la normal teórica.
+
+```{r}
+N <- 10000
+
+
+# Comparación con aproximación normal
+n_grandes <- c(10, 30, 50, 100)
+
+# Crear subgráficos para cada valor de n
+plots_normal <- list()
+
+for (i in seq_along(n_grandes)) {
+  n_val <- n_grandes[i]
+  data_sim <- tibble(Muestra = 1:N, Valor = rchisq(N, n_val))
+  
+  plots_normal[[i]] <- ggplot() +
+    geom_histogram(data = data_sim, aes(x= Valor, y = after_stat(density)), fill = "#3AAA23", color = "black",
+                   center = n_val, bins = 50)+
+    geom_function(fun = dchisq, args = list(df = n_grandes[i]), 
+                  aes(color = "Ji-cuadrada"), linewidth = 1.2) +
+    geom_function(fun = dnorm, args = list(mean = n_grandes[i], sd = sqrt(2*n_grandes[i])), 
+                  aes(color = "Normal"), linewidth =1.2) +
+    scale_color_manual(
+      values = c("Ji-cuadrada" = "#d62728", "Normal" = "steelblue"),
+      name = "Distribución"
+    ) +
+    #xlim(max(0, n_val - 4*sqrt(2*n_val)), n_val + 4*sqrt(2*n_val)) +
+    labs(
+      title = paste("n =", n_val),
+      x = "x", y = "f(x)"
+    ) +
+    theme_minimal() + 
+   theme(
+         plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+         plot.subtitle = element_text(hjust = 0.5, size = 12),
+         axis.title = element_text(size = 12)
+         )
+}
+
+# Combinar todos los gráficos
+grid.arrange(grobs = plots_normal, ncol = 2, 
+             top = "Aproximación Normal: χ²(n) ≈ N(n, 2n)")
+```
+
+
+
+
 
 :::
 

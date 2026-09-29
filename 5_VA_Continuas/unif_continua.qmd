@@ -706,6 +706,42 @@ El tiempo de carga de una página web sigue una distribución uniforme entre 2 y
 1.  Crear un histograma de los tiempos de carga simulados (n=1000) y superponer la densidad teórica.
 2.  Cuál es el percentil 75 de los tiempos de carga?
 3.  ¿Cuál es la probabilidad de que una página cargue en menos de 4 segundos?
+
+
+```{r}
+n <- 1000
+
+data_time <- tibble(Muestra= 1:n, Tiempo = runif(n, min=2,8))
+q75_muestral <- quantile(data_time$Tiempo, probs = 0.75)
+q75_teorico <- qunif(0.75, 2, 8)
+
+
+ggplot(data_time)+
+  geom_histogram(aes(x = Tiempo, y = after_stat(density)), fill = "#852AAA", color ="black", boundary = 2, binwidth = 0.2)+
+  geom_vline(xintercept = q75_muestral, color = "green", linewidth = 1, linetype = "dashed") +
+  geom_vline(xintercept = q75_teorico, color = "gold", linewidth = 1, linetype = "dashed") +
+  geom_hline(yintercept = 1/6, color = "red", linewidth = 1, linetype = "dashed")+
+  labs(title = "Distribución de tiempo de carga",
+       x = "Tiempo (s)",
+       y = "Densidad",
+       caption = "Línea roja: Densidad teórica | Verde: Percentil 75 muestral | Amarilla: Percentil 75 teórico") +
+  theme_bw()
+
+
+
+
+```
+
+```{r}
+cat("Percentil 75 muestral:", round(q75_muestral, 4), "segundos\n")
+cat("Percentil 75 teorico:", round(q75_teorico, 4), "segundos\n")
+cat("P(X<4)=", punif(4, 2,8))
+
+```
+
+
+
+
 :::
 
 ------------------------------------------------------------------------
@@ -717,11 +753,123 @@ Crear una distribución uniforme "truncada" y verificar el TCL.
 
 1.  Generar muestras de unif(0,1) pero solo conservar valores \> 0.3 (esto creará una distribución sesgada)
 
+
+```{r}
+n <- 1500
+
+data_truncado <- tibble(Muestra = runif(n)) |> filter(Muestra >=0.3)
+
+ggplot(data_truncado)+
+  geom_histogram(aes(x = Muestra), fill = "#852AAA", color ="black", boundary = 0.3, binwidth = 0.05)+
+  # geom_vline(xintercept = q75_muestral, color = "green", linewidth = 1, linetype = "dashed") +
+  # geom_vline(xintercept = q75_teorico, color = "gold", linewidth = 1, linetype = "dashed") +
+  # geom_hline(yintercept = 1/6, color = "red", linewidth = 1, linetype = "dashed")+
+  # labs(title = "Distribución de tiempo de carga",
+  #      x = "Tiempo (s)",
+  #      y = "Densidad",
+  #      caption = "Línea roja: Densidad teórica | Verde: Percentil 75 muestral | Amarilla: Percentil 75 teórico") +
+  theme_bw()
+
+
+
+```
+
+
+
+
+
+
+
+
+
 2.  Para tamaños de muestra n = c(5, 15, 30, 60, 120):
 
     - Generar 800 medias muestrales de cada tamaño
     - Crear histogramas mostrando la normalización
     - Calcular skewness y kurtosis de las distribuciones de medias
+    
+```{r tcl-simexr}
+# Parámetros de la distribución uniforme
+a_tcl <- 0
+b_tcl <- 1
+media_poblacional <- (a_tcl + b_tcl) / 2
+varianza_poblacional <- (b_tcl - a_tcl)^2 / 12
+
+# Diferentes tamaños de muestra
+tamaños_muestra <- c(5, 15, 30, 60, 120)
+num_muestras <- 800  # Número de medias muestrales a generar
+
+
+funcion_truncar <- function(n, a, b){
+  muestra <- runif(n, min =a, max=b)
+  muestra_truncada <- muestra[muestra>=0.3]
+  media_truncada <- mean(muestra_truncada)
+}
+
+
+# Función para generar medias muestrales
+generar_medias <- function(n, num_sim, a, b) {
+  medias <- replicate(num_sim, funcion_truncar(n, a, b))
+  return(medias)
+}
+
+# Generar medias para cada tamaño de muestra
+resultados_tcl <- list()
+for (i in seq_along(tamaños_muestra)) {
+  n <- tamaños_muestra[i]
+  medias <- generar_medias(n, num_muestras, a_tcl, b_tcl)
+  
+  resultados_tcl[[i]] <- data.frame(
+    medias = medias,
+    n = n,
+    varianza_teorica_media = varianza_poblacional / n,
+    desv_std_teorica_media = sqrt(varianza_poblacional / n)
+  )
+}
+
+# Combinar resultados
+df_tcl <- do.call(rbind, resultados_tcl)
+df_tcl$n_factor <- factor(paste("n =", df_tcl$n), levels = paste("n =", tamaños_muestra))
+```
+
+### Visualización de la normalización
+
+```{r tcl-exr}
+
+# Crear datos para las curvas normales teóricas
+df_normal_teorica <- data.frame()
+x_range <- seq(media_poblacional - 4*sqrt(varianza_poblacional/5), media_poblacional + 4*sqrt(varianza_poblacional/5), length.out = 200)
+
+for (n in tamaños_muestra) {
+  df_temp <- data.frame(
+    x = x_range,
+    y = dnorm(x_range, mean = media_poblacional, sd = sqrt(varianza_poblacional/n)),
+    n_factor = paste("n =", n)
+  )
+  df_normal_teorica <- rbind(df_normal_teorica, df_temp)
+}
+
+df_normal_teorica$n_factor <- factor(df_normal_teorica$n_factor, levels = levels(df_tcl$n_factor))
+
+
+# Gráfico de histogramas para diferentes tamaños de muestra
+ggplot(df_tcl, aes(x = medias)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, 
+                 fill = "lightblue", color = "black", alpha = 0.7) +
+#  geom_vline(xintercept = media_poblacional, color = "red", size = 1, linetype = "dashed") +
+# Superponer curva normal teórica
+  #geom_line(data = df_normal_teorica, aes(x = x, y = y), 
+  #          color = "red", linewidth = 1, alpha = 0.65) +
+  facet_wrap(~n_factor, scales = "free_y", ncol = 3) +
+  labs(title = "Teorema Central del Límite - Distribución de Medias Muestrales",
+       subtitle = "Distribución U(0,10) con diferentes tamaños de muestra",
+       x = "Media muestral",
+       y = "Densidad") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+```    
+
 
 3.  ¿A partir de qué tamaño de muestra la distribución de medias se ve aproximadamente normal?
 :::
@@ -732,4 +880,43 @@ Crear una distribución uniforme "truncada" y verificar el TCL.
 ### Simulación de Monte Carlo
 
 Usar simulación Monte Carlo para estimar $\pi$ usando distribución uniforme.
+
+
+```{r}
+N <- 100000
+
+
+data_montecarlo <- tibble(x = runif(N), y= runif(N))
+data_montecarlo <- data_montecarlo |>  mutate(Tipo = if_else(x^2+y^2<=1, "in", "out"))
+pi_aprox <- sum(data_montecarlo$Tipo == "in")*4/N
+
+
+data_circle <- tibble(x=seq(0,1, length.out=100), y = sqrt(1-x^2))
+
+ggplot(data_montecarlo)+
+  geom_point(aes(x,y, color = Tipo), size= 0.85)+
+  scale_color_manual(values = c("steelblue2", "firebrick3"))+
+  geom_line(data= data_circle, aes(x,y), linewidth=0.9)+
+  annotate("text", x =0.5, y=0.5, label = paste0("π≈", round(pi_aprox,4)), size=8)+
+  coord_fixed()+
+  theme_minimal()
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
 :::
