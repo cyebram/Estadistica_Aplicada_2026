@@ -1,0 +1,203 @@
+---
+title: "Pruebas de Hipótesis: ENIGH"
+subtitle: "Datos Concentrados Hogar"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    df-print: paged
+    theme: cosmo
+    fontsize: 1.1rem
+    grid:
+      sidebar-width: 250px
+      body-width: 950px
+      margin-width: 250px
+      gutter-width: 1.5rem
+---
+
+```{r setup}
+#| code-fold: true
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(ggridges)
+library(scales)
+library(writexl)
+library(readxl)
+library(sf)          # Para datos espaciales
+library(viridis)     # Para paletas de colores
+
+```
+
+
+# Introducción
+
+La Encuesta Nacional de Ingresos y Gastos de los Hogares (ENIGH), realizada por el INEGI, proporciona información sobre los ingresos, los gastos y las características socioeconómicas de los hogares en México. En este ejemplo se utilizan datos de la ENIGH 2024 para explorar las diferencias en el gasto en alimentación entre entidades federativas.
+
+
+# Conjuntos de datos
+
+Se utiliza información de la tabla `CONCENTRADOHOGAR` de la ENIGH 2024. Cada fila del conjunto de datos corresponde a un hogar y contiene el gasto trimestral en alimentación dividido entre su número de integrantes; es decir, el gasto por integrante de ese hogar.
+
+Se cargan también los archivos necesarios para elaborar los mapas.
+
+
+```{r}
+#| warning: false
+#| message: false
+
+enigh2024 <- read_csv("data_input/enigh2024_concentradohogar_subset.csv")
+enigh2024 <- enigh2024 |> dplyr::select(CVE_ENT = entidad, tot_integ:ali_fuera)
+enigh2024 <- enigh2024 |> filter(alimentos < 15000)
+
+tc_entidad <- read_csv("data_input/tc_entidad.csv")
+nacional_estado <- st_read("data_geo/00ent.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+datos_factor_map <- c("CVEGEO", "CVE_ENT", "NOMGEO")
+nacional_estado <- nacional_estado |> mutate(across(all_of(datos_factor_map), as_factor))
+
+enigh2024 <- enigh2024 |> 
+  left_join(tc_entidad, by = "CVE_ENT") |> 
+  select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+
+datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
+
+enigh2024 <- enigh2024 |> 
+  mutate(across(all_of(datos_factor), as_factor))
+
+```
+
+# Cálculo de medias a nivel nacional y estatal
+
+Se calculan las medias del gasto en alimentación a nivel nacional y por entidad federativa para utilizarlas posteriormente en contrastes de hipótesis.
+
+
+```{r}
+estadisticas_nacional <- enigh2024 |> 
+  summarise(
+    observaciones = n(),
+    alimentos = mean(alimentos, na.rm = TRUE),
+    ali_dentro = mean(ali_dentro, na.rm = TRUE),
+    cereales = mean(cereales, na.rm = TRUE),
+    carnes = mean(carnes, na.rm = TRUE),
+    pescado = mean(pescado, na.rm = TRUE),
+    leche = mean(leche, na.rm = TRUE),
+    huevo = mean(huevo, na.rm = TRUE),
+    aceites = mean(aceites, na.rm = TRUE),
+    tuberculo = mean(tuberculo, na.rm = TRUE),
+    verduras = mean(verduras, na.rm = TRUE),
+    frutas = mean(frutas, na.rm = TRUE),
+    azucar = mean(azucar, na.rm = TRUE),
+    cafe = mean(cafe, na.rm = TRUE),
+    especias = mean(especias, na.rm = TRUE),
+    otros_alim = mean(otros_alim, na.rm = TRUE),
+    bebidas = mean(bebidas, na.rm = TRUE),
+    ali_fuera = mean(ali_fuera, na.rm = TRUE)
+  ) 
+
+
+# Calcular estadísticas descriptivas por estado
+estadisticas_estados <- enigh2024 |> 
+  group_by(CVE_ENT)  |> 
+  summarise(
+    observaciones = n(),
+    alimentos = mean(alimentos, na.rm = TRUE),
+    ali_dentro = mean(ali_dentro, na.rm = TRUE),
+    cereales = mean(cereales, na.rm = TRUE),
+    carnes = mean(carnes, na.rm = TRUE),
+    pescado = mean(pescado, na.rm = TRUE),
+    leche = mean(leche, na.rm = TRUE),
+    huevo = mean(huevo, na.rm = TRUE),
+    aceites = mean(aceites, na.rm = TRUE),
+    tuberculo = mean(tuberculo, na.rm = TRUE),
+    verduras = mean(verduras, na.rm = TRUE),
+    frutas = mean(frutas, na.rm = TRUE),
+    azucar = mean(azucar, na.rm = TRUE),
+    cafe = mean(cafe, na.rm = TRUE),
+    especias = mean(especias, na.rm = TRUE),
+    otros_alim = mean(otros_alim, na.rm = TRUE),
+    bebidas = mean(bebidas, na.rm = TRUE),
+    ali_fuera = mean(ali_fuera, na.rm = TRUE),
+    .groups = "drop"
+  ) 
+
+# Tabla completa de estadísticas por estado
+estadisticas_estados <- estadisticas_estados |> 
+  left_join(tc_entidad, by = "CVE_ENT") |> 
+  select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+
+datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
+
+estadisticas_estados <- estadisticas_estados |> 
+  mutate(across(all_of(datos_factor), as_factor))
+  
+```
+
+
+
+# Gasto promedio trimestral en alimentos por estado
+
+
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+
+alimentos_estados <- estadisticas_estados |> 
+  select(CVE_ENT, alimentos) |> 
+  left_join(nacional_estado, by = "CVE_ENT") |> 
+  st_as_sf()
+  
+
+
+
+mapa <- ggplot(alimentos_estados) +
+  geom_sf(aes(fill=alimentos), color = "gray50", linewidth = 0.5) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos",
+    subtitle = "Valores en MXN, 2024",
+    caption = "Fuente: INEGI - ENIGH 2024",
+    fill = " "
+  ) +
+  scale_fill_viridis_c(labels = comma) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+
+```{r}
+#| fig-width: 12
+#| fig-height: 6
+
+ggplot(enigh2024, aes(x = ABR_ENT, y = alimentos)) +
+  geom_boxplot(aes(fill = ABR_ENT), outlier.color = "red", outlier.size = 1.5, show.legend = FALSE, alpha = 0.4) +
+  geom_hline(yintercept = estadisticas_nacional$alimentos, linetype = "dashed", color = "blue", linewidth = 1.2) +
+  geom_point(data = estadisticas_estados, aes(x = ABR_ENT, y = alimentos), color = "darkgreen", size = 3) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos por estado",
+    x = "Estado",
+    y = "Pesos MXN"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+
+

@@ -1,0 +1,33 @@
+CVE_ENT,NOM_ENT,ABR_ENT,ZONA
+"	01",Aguascalientes,AGS,CENTRO
+"	02",Baja California,BC,NORTE
+"	03",Baja California Sur,BCS,NORTE
+"	04",Campeche,CAMP,SUR
+"	05",Coahuila de Zaragoza,COAH,NORTE
+"	06",Colima,COL,CENTRO
+"	07",Chiapas,CHIS,SUR
+"	08",Chihuahua,CHIH,NORTE
+"	09",Ciudad de México,CDMX,CENTRO
+"	10",Durango,DGO,NORTE
+"	11",Guanajuato,GTO,CENTRO
+"	12",Guerrero,GRO,SUR
+"	13",Hidalgo,HGO,CENTRO
+"	14",Jalisco,JAL,CENTRO
+"	15",México,MEX,CENTRO
+"	16",Michoacán de Ocampo,MICH,CENTRO
+"	17",Morelos,MOR,CENTRO
+"	18",Nayarit,NAY,CENTRO
+"	19",Nuevo León,NL,NORTE
+"	20",Oaxaca,OAX,SUR
+"	21",Puebla,PUE,CENTRO
+"	22",Querétaro,QRO,CENTRO
+"	23",Quintana Roo,QROO,SUR
+"	24",San Luis Potosí,SLP,CENTRO
+"	25",Sinaloa,SIN,NORTE
+"	26",Sonora,SON,NORTE
+"	27",Tabasco,TAB,SUR
+"	28",Tamaulipas,TAMS,NORTE
+"	29",Tlaxcala,TLAX,CENTRO
+"	30",Veracruz de Ignacio de la Llave,VER,SUR
+"	31",Yucatán,YUC,SUR
+"	32",Zacatecas,ZAC,NORTE
