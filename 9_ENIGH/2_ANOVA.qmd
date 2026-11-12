@@ -12,10 +12,20 @@ format:
     fontsize: 1.1rem
     grid:
       sidebar-width: 250px
-      body-width: 950px
+      body-width: 1000px
       margin-width: 250px
       gutter-width: 1.5rem
 ---
+
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+
 
 ```{r setup}
 #| code-fold: true
@@ -31,7 +41,18 @@ library(sf)          # Para datos espaciales
 library(viridis)     # Para paletas de colores
 library(RColorBrewer) # Para paletas de colores
 
+library(DT)
+library(knitr)
+library(kableExtra)
+library(corrplot)
+library(broom)
+library(scales)
+library(multcomp)
+
 ```
+
+
+
 
 
 # Introducción
@@ -61,7 +82,7 @@ nacional_estado <- nacional_estado |> mutate(across(all_of(datos_factor_map), as
 
 enigh2024 <- enigh2024 |> 
   left_join(tc_entidad, by = "CVE_ENT") |> 
-  select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
 
 datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
 
@@ -130,7 +151,7 @@ estadisticas_estados <- enigh2024 |>
 # Tabla completa de estadísticas por estado
 estadisticas_estados <- estadisticas_estados |> 
   left_join(tc_entidad, by = "CVE_ENT") |> 
-  select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
 
 #datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
 
@@ -169,7 +190,7 @@ estadisticas_zona <- enigh2024 |>
 
 estados_zona <- estadisticas_estados |> 
   left_join(estadisticas_zona, by = "ZONA") |> 
-  select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
 
 estados_zona <- estados_zona |> 
   mutate(across(all_of(datos_factor), as_factor))
@@ -215,6 +236,219 @@ mapa
 ```
 
 
+# Alimentación por Zona
+
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+mapa <- ggplot(estados_zona) +
+  geom_sf(aes(fill=alimentos_zona), color = "gray50", linewidth = 0.2) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos",
+    subtitle = "Valores en MXN, 2024",
+    caption = "Fuente: INEGI - ENIGH 2024",
+    fill = " "
+  ) +
+  scale_fill_viridis_c(labels = comma) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+
+
+ggplot(enigh2024, aes(x = ZONA, y = alimentos)) +
+  geom_boxplot(aes(fill = ZONA), outlier.color = "red", outlier.size = 1.5, show.legend = FALSE, alpha = 0.4) +
+  geom_hline(yintercept = estadisticas_nacional$alimentos, linetype = "dashed", color = "blue", linewidth = 1.2) +
+  geom_point(data = estadisticas_zona, aes(x = ZONA, y = alimentos_zona), color = "darkgreen", size = 3) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos por zona",
+    x = "Zona Geográfica",
+    y = "Pesos MXN"
+  ) +
+  #scale_y_log10(labels = comma) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+
+## ANOVA paso a paso
+
+### Variación entre los grupos (SSB)
+
+
+```{r}
+SSB_df <- estadisticas_zona |> dplyr::select(ZONA, observaciones, alimentos_zona) |> 
+  mutate(Dif_Square = (alimentos_zona- estadisticas_nacional$alimentos)^2, DSW = Dif_Square*observaciones)
+
+SSB <- sum(SSB_df$DSW)
+
+cat("SSB = ", SSB)
+
+```
+
+
+
+
+
+## Variación en los grupos (SSW)
+
+```{r}
+
+SSW_df <- enigh2024 |> dplyr::select(ZONA, alimentos)|>
+  left_join(estadisticas_zona |> dplyr::select(ZONA, alimentos_zona))
+
+
+SSW_df <- SSW_df |> mutate(Dif_Square = (alimentos-alimentos_zona)^2)
+
+SSW <- sum(SSW_df$Dif_Square)
+
+
+cat("SSW = ", SSW)
+```
+
+
+
+# Alimentación por estado
+
+
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+mapa <- ggplot(estados_zona) +
+  geom_sf(aes(fill=alimentos), color = "gray50", linewidth = 0.2) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos",
+    subtitle = "Valores en MXN, 2024",
+    caption = "Fuente: INEGI - ENIGH 2024",
+    fill = " "
+  ) +
+  scale_fill_viridis_c(labels = comma) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+print(mapa)
+```
+
+
+```{r}
+#| fig-align: "center"
+#| fig-width: 12
+#| fig-height: 6
+
+ggplot(enigh2024, aes(x = ABR_ENT, y = alimentos)) +
+  geom_boxplot(aes(fill = ABR_ENT), outlier.color = "red", outlier.size = 1.5, show.legend = FALSE) +
+  geom_hline(yintercept = estadisticas_nacional$alimentos, linetype = "dashed", color = "firebrick", linewidth = 1.1)+
+  geom_point(data = estadisticas_estados, aes(ABR_ENT, alimentos), size = 3.5, color = "gold")+
+  labs(
+    title = "Gasto promedio trimestral en alimentos",
+    x = "Entidad",
+    y = "Pesos MXN"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+Se realiza el análisis de varianza (ANOVA) para determinar si existen diferencias significativas en los egresos/ingresos entre los estados. También se aplica la prueba post-hoc de comparaciones múltiples de Tukey. Los resultados se muestran en el siguiente diagramas de cajas indicando los grupos obtenidos. *Nota:* Dado que en la prueba de Tukey se llevan comparaciones por pares (para los 30 estados considerados en total son 496 parejas), el análisis toma demasiado tiempo, por ello es necesario cargar los archivos RDS con los resultados.
+
+
+```{r}
+#| fig-width: 12
+#| fig-height: 6
+#| fig-align: "center"
+
+alimentos_aov <- aov(alimentos ~ ABR_ENT, data = enigh2024)
+alimentos_aov
+summary(alimentos_aov)
+
+alimentos_tukey <- glht(alimentos_aov, linfct = mcp(ABR_ENT = "Tukey"))
+#alimentos_tukey_resumen <- summary(alimentos_tukey)
+#alimentos_tukey_labels <- cld(alimentos_tukey)
+alimentos_tukey_resumen <- readRDS("alimentos_tukey_resumen.rds")
+alimentos_tukey_labels <- readRDS("alimentos_tukey_labels.rds")
+
+alimentos_estado_labels <- as.data.frame(alimentos_tukey_labels$mcletters$Letters)
+alimentos_estado_labels <- alimentos_estado_labels |>
+  mutate(ABR_ENT = rownames(alimentos_estado_labels), .before = 1) |> 
+  rename(tukey_label = `alimentos_tukey_labels$mcletters$Letters`)
+
+# Basado en letras dominantes
+#clasificacion_gasto <- function(letras) {
+#  case_when(
+#    str_detect(letras, "q") ~ "Muy Alto",           
+#    str_detect(letras, "[jklo]") ~ "Alto",           
+#    str_detect(letras, "[def]") ~ "Medio-Alto",     
+#    str_detect(letras, "[ab]") ~ "Moderado"            
+#  )
+#}
+
+#tema_estado_labels <- tema_estado_labels |> 
+#  mutate(
+#    clasificacion = clasificacion_gasto(tukey_label)
+#  )
+
+
+
+#tema_estado_labels$clasificacion <- factor(tema_estado_labels$clasificacion, levels = c("Muy Alto", "Alto", "Medio-Alto", "Moderado"))
+
+alimentos_q75 <- dplyr::select(enigh2024, ABR_ENT, alimentos) |> group_by(ABR_ENT) |> 
+  summarise(
+    q_75 = quantile(alimentos, 0.75, na.rm =TRUE),
+    .groups = "drop"
+  )
+
+alimentos_estado_labels <- left_join(alimentos_estado_labels, alimentos_q75, by = "ABR_ENT")
+
+
+ggplot(enigh2024, aes(x = ABR_ENT, y = alimentos)) +
+  geom_boxplot(aes(fill = ABR_ENT), outlier.color = "red", outlier.size = 1.5, show.legend = FALSE) +
+  geom_hline(yintercept = estadisticas_nacional$alimentos, linetype = "dashed", color = "firebrick", linewidth = 1.1)+
+  geom_point(data = estadisticas_estados, aes(ABR_ENT, alimentos), size = 3.5, color = "gold")+
+  geom_label(data = alimentos_estado_labels,
+    aes(x = ABR_ENT, y = q_75, label = tukey_label),
+    color = "black", size = 5, vjust = -0.3) +
+  labs(
+    title = "Gasto promedio trimestral en alimentos",
+    x = "Entidad",
+    y = "Pesos MXN"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12)
+  )
+```
 
 
 
