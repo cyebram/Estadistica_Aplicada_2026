@@ -1,0 +1,194 @@
+---
+title: "Análisis Estadístico de la ENIGH 2024: Gasto en Alimentos"
+subtitle: "Análisis de Componentes Principales"
+lang: es
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    df-print: paged
+    theme: cosmo
+    fontsize: 1.1rem
+    grid:
+      sidebar-width: 250px
+      body-width: 1000px
+      margin-width: 250px
+      gutter-width: 1.5rem
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| code-fold: true
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(RColorBrewer)
+library(sf)          # Para datos espaciales
+library(viridis)     # Para paletas de colores
+library(DT)
+library(plotly)
+library(knitr)
+library(kableExtra)
+library(corrplot)
+library(broom)
+library(scales)
+library(multcomp)
+
+
+library(factoextra)
+library(FactoMineR)
+```
+
+# Introducción
+
+Previamente se hizo una descripción general de los gastos en alimentos con los datos proporcionados por la ENIGH 2024. En este análisis, nos enfocaremos en desglosar los gastos por tipos de alimentos y estado, encontrando las componentes principales, que son proyecciones ortogonales sobre el espacio vectorial generado por los datos. 
+
+# Conjunto de datos
+
+Se utiliza información de la tabla `CONCENTRADOHOGAR` de la ENIGH 2024. Cada fila del conjunto de datos corresponde a un hogar y contiene el gasto trimestral en alimentación dividido entre su número de integrantes; es decir, el gasto por integrante de ese hogar.
+
+
+
+```{r}
+#| code-fold: true
+#| message: false
+#| warning: false
+
+
+enigh2024 <- read_csv("data_input/enigh2024_concentradohogar_subset.csv")
+enigh2024 <- enigh2024 |> dplyr::select(CVE_ENT = entidad, tot_integ:ali_fuera)
+enigh2024 <- enigh2024 |> filter(alimentos < 15000)
+
+tc_entidad <- read_csv("data_input/tc_entidad.csv")
+nacional_estado <- st_read("data_geo/00ent.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+datos_factor_map <- c("CVEGEO", "CVE_ENT", "NOMGEO")
+nacional_estado <- nacional_estado |> mutate(across(all_of(datos_factor_map), as_factor))
+
+enigh2024 <- enigh2024 |> 
+  left_join(tc_entidad, by = "CVE_ENT") |> 
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+
+datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
+
+enigh2024 <- enigh2024 |> 
+  mutate(across(all_of(datos_factor), as_factor))
+
+enigh2024$ZONA <- factor(enigh2024$ZONA, levels = c("NORTE", "CENTRO", "SUR"))
+
+```
+
+Se seleccionan las variables numéricas para el análisis de componentes principales (PCA). 
+
+```{r}
+#| code-fold: true
+
+enigh_num <- enigh2024 |> dplyr::select(ali_dentro:ali_fuera)
+```
+
+# PCA gastos en alimentos
+
+:::: panel-tabset
+## Eigenvalores y varianzas
+
+```{r}
+#| code-fold: true
+
+PC_gasto <- prcomp(enigh_num, scale.=TRUE, center=TRUE)
+
+eig_valor <- get_eigenvalue(PC_gasto)
+eig_tabla <- data.frame(PC=paste0("PC",1:dim(eig_valor)[1]), 
+                        Eigenvalor=round(eig_valor$eigenvalue,3), 
+                        Varianza=round(eig_valor$variance.percent,2), 
+                        Var_acu=round(eig_valor$cumulative.variance.percent,2))
+
+kable(eig_tabla, align = "c", col.names = c("Componente", "Eigenvalor", "% varianza", "% varianza acumulada")) %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+## Scree plot
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+fviz_eig(PC_gasto, addlabels = TRUE)
+```
+
+## Coeficientes (Loadings)
+
+```{r}
+#| code-fold: true
+PC_coef <-data.frame(PC_gasto$rotation)
+kable(PC_coef, align = "c") %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+## Contribución variables
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+fviz_pca_var(PC_gasto, col.var = "contrib", gradient.cols=c("#1627dc", "#ffb600", "#ff2e16"), repel=TRUE)
+```
+
+## Contribución PC1
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_gasto, "var", axes = 1)
+```
+
+## Contribución PC2
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_gasto, "var", axes = 2)
+```
+
+## Proyecciones
+
+::: panel-tabset
+### Biplot
+
+```{r}
+#| code-fold: true
+fviz_pca_biplot(PC_gasto,
+                geom.ind = "point",
+                fill.ind = enigh2024$ABR_ENT,
+                pointshape = 21 ,
+                pointsize = 2,
+                alpha.ind=0.6,
+                col.var = "black",
+                mean.point = FALSE,
+                #palette= ,
+                label= "var",
+                repel = TRUE   
+  )
+```
+
+### Proyección
+
+```{r}
+#| code-fold: true
+proy_scores <- fviz_pca_ind(PC_gasto,
+             pointsize = 2,
+             habillage = enigh2024$ABR_ENT,
+             mean.point = FALSE,
+             #addEllipses = TRUE,
+             label= "var",
+            repel = TRUE 
+  )
+
+ggplotly(proy_scores)
+```
+:::
+::::
+
+
