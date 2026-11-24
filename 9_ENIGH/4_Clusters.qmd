@@ -1,0 +1,490 @@
+---
+title: "Análisis Estadístico de la ENIGH 2024: Gasto en Alimentos"
+subtitle: "Agrupamiento (Clustering)"
+format: 
+  html:
+    grid: 
+      body-width: 1000px
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| code-fold: true
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(RColorBrewer)
+library(sf)          # Para datos espaciales
+library(viridis)     # Para paletas de colores
+library(DT)
+library(plotly)
+library(knitr)
+library(kableExtra)
+library(corrplot)
+library(broom)
+library(scales)
+library(multcomp)
+
+
+library(factoextra)
+library(FactoMineR)
+```
+
+
+# Introducción
+
+Después de realizar un análisis exploratorio de los datos de la Encuesta Nacional de Ingresos y Gastos de los Hogares (ENIGH) 2024, se identificaron patrones interesantes en el gasto en alimentos. Posteriormente se llevaron a cabo algunas pruebas de hipótesis para comparar la media (a nivel estatal) en el gasto de diferentes tipos de alimentos. 
+
+El análisis de componentes princiapales (PCA), brindó una visión más clara de las relaciones entre las variables. En este documento se desarrolla el agrupamiento, para identificar similitudes y asociaciones respecto al perfil de gastos a nivel estatal.
+
+# Conjuntos de datos
+
+Se utiliza información de la tabla `CONCENTRADOHOGAR` de la ENIGH 2024. Se calculan las medias del gasto en alimentación por entidad federativa.
+
+Se cargan también los archivos necesarios para elaborar los mapas.
+
+
+```{r}
+#| warning: false
+#| message: false
+#| code-fold: true
+
+enigh2024 <- read_csv("data_input/enigh2024_concentradohogar_subset.csv")
+enigh2024 <- enigh2024 |> dplyr::select(CVE_ENT = entidad, tot_integ:ali_fuera)
+enigh2024 <- enigh2024 |> filter(alimentos < 15000)
+
+tc_entidad <- read_csv("data_input/tc_entidad.csv")
+nacional_estado <- st_read("data_geo/00ent.shp", options = "ENCODING=LATIN1", quiet = TRUE)
+datos_factor_map <- c("CVEGEO", "CVE_ENT", "NOMGEO")
+nacional_estado <- nacional_estado |> mutate(across(all_of(datos_factor_map), as_factor))
+
+enigh2024 <- enigh2024 |> 
+  left_join(tc_entidad, by = "CVE_ENT") |> 
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+
+datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
+
+enigh2024 <- enigh2024 |> 
+  mutate(across(all_of(datos_factor), as_factor))
+
+enigh2024$ZONA <- factor(enigh2024$ZONA, levels = c("NORTE", "CENTRO", "SUR"))
+
+
+
+estadisticas_estados <- enigh2024 |> 
+  group_by(CVE_ENT)  |> 
+  summarise(
+    observaciones = n(),
+    alimentos = mean(alimentos, na.rm = TRUE),
+    ali_dentro = mean(ali_dentro, na.rm = TRUE),
+    cereales = mean(cereales, na.rm = TRUE),
+    carnes = mean(carnes, na.rm = TRUE),
+    pescado = mean(pescado, na.rm = TRUE),
+    leche = mean(leche, na.rm = TRUE),
+    huevo = mean(huevo, na.rm = TRUE),
+    aceites = mean(aceites, na.rm = TRUE),
+    tuberculo = mean(tuberculo, na.rm = TRUE),
+    verduras = mean(verduras, na.rm = TRUE),
+    frutas = mean(frutas, na.rm = TRUE),
+    azucar = mean(azucar, na.rm = TRUE),
+    cafe = mean(cafe, na.rm = TRUE),
+    especias = mean(especias, na.rm = TRUE),
+    otros_alim = mean(otros_alim, na.rm = TRUE),
+    bebidas = mean(bebidas, na.rm = TRUE),
+    ali_fuera = mean(ali_fuera, na.rm = TRUE),
+    .groups = "drop"
+  ) 
+
+# Tabla completa de estadísticas por estado
+estadisticas_estados <- estadisticas_estados |> 
+  left_join(tc_entidad, by = "CVE_ENT") |> 
+  dplyr::select(CVE_ENT, NOM_ENT, ABR_ENT, ZONA, everything())
+
+datos_factor <- c("CVE_ENT", "NOM_ENT", "ABR_ENT", "ZONA")
+
+estadisticas_estados <- estadisticas_estados |> 
+  mutate(across(all_of(datos_factor), as_factor))
+
+estadisticas_estados_mapa <- left_join(estadisticas_estados, nacional_estado) |> 
+  st_as_sf()
+
+estadisticas_estados_num <- estadisticas_estados |> 
+  dplyr::select(ali_dentro:ali_fuera)
+
+row.names(estadisticas_estados_num) <- estadisticas_estados$ABR_ENT
+  
+```
+
+
+
+# Distancias
+
+A continuación se muestra una representación gráfica de la matriz de distancias utilizando la métrica euclidiana.
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+#| fig-align: "center"
+
+
+dist.eucl <- dist(estadisticas_estados_num)
+dist.eucl_matrix <- as.matrix(dist.eucl)
+dist.eucl_plot <- fviz_dist(dist.eucl, lab_size = 6)+
+  theme(axis.text.x = element_text(size=15),
+        axis.text.y = element_text(size=15))
+ggplotly(dist.eucl_plot)
+```
+
+
+# Agrupamiento jerárquico
+
+Llevamos a cabo el agrupamiento jerárquico utilizando la matriz de distancias Euclidianas. Se muestran los dendrogramas utilizando diferentes métodos de enlace.
+
+## Distancia Euclidiana
+
+::: panel-tabset
+### Completo
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+
+euc_comp_hc <- hclust(dist.eucl, method = "complete")
+fviz_dend(euc_comp_hc, k=4, cex=0.9, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=3)
+
+```
+
+En este caso, al considerar 4 grupos, *cortamos* el árbol, identificamos cuántas observaciones hay en cada cluster y por ejemplo, mostramos los elementos del grupo 3.
+
+```{r}
+#| code-fold: true
+
+grp_euc_complete <- cutree(euc_comp_hc, k=4)
+grp_complete_df <- as.data.frame(grp_euc_complete)
+grp_complete_df <- grp_complete_df |> 
+  rownames_to_column(var = "ABR_ENT")
+table(grp_euc_complete)
+rownames(estadisticas_estados_num)[grp_euc_complete == 3]
+```
+
+Utilizando la función `fviz_cluster()` podemos visualizar el resultado por medio de un scatterplot. Las observaciones son representadas en el plano usando componentes principales.
+
+```{r}
+#| code-fold: true
+
+fviz_cluster(list(data= estadisticas_estados_num, cluster= grp_euc_complete),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, grp_complete_df , by = "ABR_ENT")
+nacional_estado$grp_euc_complete <- as.factor(nacional_estado$grp_euc_complete)
+nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=grp_euc_complete), color = "gray50", size = 0.5) +
+  labs(
+    title = "Clustering, linkage complete ",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+### Single
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+
+euc_single_hc <- hclust(dist.eucl, method = "single")
+fviz_dend(euc_single_hc, k=4, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=0.1)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_single <- cutree(euc_single_hc, k=4)
+grp_single_df <- as.data.frame(grp_euc_single)
+grp_single_df <- grp_single_df |> 
+  rownames_to_column(var = "ABR_ENT")
+fviz_cluster(list(data= estadisticas_estados_num, cluster= grp_euc_single),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, grp_single_df , by = "ABR_ENT")
+nacional_estado$grp_euc_single <- as.factor(nacional_estado$grp_euc_single)
+# nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=grp_euc_single), color = "gray50", size = 0.5) +
+  labs(
+    title = "Clustering, linkage single ",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+### Average
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+
+euc_ave_hc <- hclust(dist.eucl, method = "average")
+fviz_dend(euc_ave_hc, k=4, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=0.25)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_ave <- cutree(euc_ave_hc, k=4)
+grp_ave_df <- as.data.frame(grp_euc_ave)
+grp_ave_df <- grp_ave_df |> 
+  rownames_to_column(var = "ABR_ENT")
+fviz_cluster(list(data= estadisticas_estados_num, cluster= grp_euc_ave),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, grp_ave_df , by = "ABR_ENT")
+nacional_estado$grp_euc_ave <- as.factor(nacional_estado$grp_euc_ave)
+# nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=grp_euc_ave), color = "gray50", size = 0.5) +
+  labs(
+    title = "Clustering, linkage average",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+
+
+
+### Ward.D2
+
+```{r}
+#| code-fold: true
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+
+euc_ward2_hc <- hclust(dist.eucl, method = "ward.D2")
+fviz_dend(euc_ward2_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=0.25)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_ward2 <- cutree(euc_ward2_hc, k=5)
+grp_ward2_df <- as.data.frame(grp_euc_ward2)
+grp_ward2_df <- grp_ward2_df |> 
+  rownames_to_column(var = "ABR_ENT")
+fviz_cluster(list(data= estadisticas_estados_num, cluster= grp_euc_ward2),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, grp_ward2_df , by = "ABR_ENT")
+nacional_estado$grp_euc_ward2 <- as.factor(nacional_estado$grp_euc_ward2)
+# nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=grp_euc_ward2), color = "gray50", size = 0.5) +
+  labs(
+    title = "Clustering, linkage Ward",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+:::
+
+
+
+# K-means
+
+::: panel-tabset
+
+## K = 3
+
+
+
+
+```{r}
+#| code-fold: true
+
+km3 <- kmeans(estadisticas_estados_num, 3, nstart = 25)
+km3_df <- as.data.frame(km3$cluster)
+km3_df <- km3_df |> 
+  rownames_to_column(var = "ABR_ENT")
+colnames(km3_df)[2] <- "km3_cluster"
+km3_df$km3_cluster <- as.factor(km3_df$km3_cluster)
+fviz_cluster(km3, data = estadisticas_estados_num, palette= "jco", ellipse.type = "euclid", star.plot=TRUE, ggtheme=theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, km3_df , by = "ABR_ENT")
+
+# nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=km3_cluster), color = "gray50", size = 0.5) +
+  labs(
+    title = "K means, K=3",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+## K = 4
+
+
+
+
+```{r}
+#| code-fold: true
+
+km4 <- kmeans(estadisticas_estados_num, 4, nstart = 25)
+km4_df <- as.data.frame(km4$cluster)
+km4_df <- km4_df |> 
+  rownames_to_column(var = "ABR_ENT")
+colnames(km4_df)[2] <- "km4_cluster"
+km4_df$km4_cluster <- as.factor(km4_df$km4_cluster)
+fviz_cluster(km4, data = estadisticas_estados_num, palette= "jco", ellipse.type = "euclid", star.plot=TRUE, ggtheme=theme_bw())
+```
+
+```{r}
+#| code-fold: true
+#| fig-width: 8
+#| fig-height: 6
+#| fig-align: "center"
+
+nacional_estado <- left_join(estadisticas_estados_mapa, km4_df , by = "ABR_ENT")
+
+# nacional_estado <- nacional_estado |>  mutate(grp_euc_complete = if_else(is.na(grp_euc_complete), "Otro", grp_euc_complete))
+
+mapa <- ggplot(nacional_estado) +
+  geom_sf(aes(fill=km4_cluster), color = "gray50", size = 0.5) +
+  labs(
+    title = "K means, K=4",
+    fill = "Cluster"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 10)
+  )
+  
+  
+print(mapa)
+```
+
+
+
+:::
+
+
